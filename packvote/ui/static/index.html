@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pack Vote Control Center</title>
+    <link rel="stylesheet" href="/ui/styles.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Pack Vote Control Center</h1>
+      <p>Create a trip, collect preferences, generate AI recommendations, and pick a winner.</p>
+    </header>
+
+    <main>
+      <section id="status-panel" class="card">
+        <h2>Status</h2>
+        <div class="status-row">
+          <span>Trip:</span><span id="trip-status">Not created</span>
+        </div>
+        <div class="status-row">
+          <span>Participants:</span><span id="participant-status">0</span>
+        </div>
+        <div class="status-row">
+          <span>Survey:</span><span id="survey-status">Not created</span>
+        </div>
+        <div class="status-row">
+          <span>Recommendations:</span><span id="recommendation-status">0</span>
+        </div>
+        <div class="status-row">
+          <span>Vote Result:</span><span id="result-status">N/A</span>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>1. Create Trip</h2>
+        <form id="trip-form">
+          <label>
+            Trip Name
+            <input name="name" placeholder="Best Friends Getaway" required />
+          </label>
+          <label>
+            Organizer Name
+            <input name="organizer_name" placeholder="Taylor" required />
+          </label>
+          <label>
+            Organizer Phone
+            <input name="organizer_phone" placeholder="+15551234567" required />
+          </label>
+          <label>
+            Description
+            <textarea name="description" placeholder="Tell the AI what the group is into"></textarea>
+          </label>
+          <div class="form-grid">
+            <label>
+              Budget Min (USD)
+              <input name="budget_min" type="number" min="0" />
+            </label>
+            <label>
+              Budget Max (USD)
+              <input name="budget_max" type="number" min="0" />
+            </label>
+          </div>
+          <label>
+            Tags (comma separated)
+            <input name="tags" placeholder="adventure, beach" />
+          </label>
+          <button type="submit">Create Trip</button>
+        </form>
+        <p class="hint">After creating the trip, continue with the next steps below.</p>
+      </section>
+
+      <section class="card">
+        <h2>2. Add Participant</h2>
+        <form id="participant-form">
+          <label>
+            Name
+            <input name="name" placeholder="Jordan" required />
+          </label>
+          <label>
+            Phone
+            <input name="phone" placeholder="+15557654321" required />
+          </label>
+          <label>
+            Email
+            <input name="email" type="email" placeholder="optional" />
+          </label>
+          <button type="submit">Add Participant</button>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2>3. Create Survey</h2>
+        <form id="survey-form">
+          <label>
+            Survey Name
+            <input name="name" value="Preference Pulse" required />
+          </label>
+          <div class="form-grid">
+            <label>
+              Question 1
+              <input name="question1" value="What's your ideal vibe?" required />
+            </label>
+            <label>
+              Question 2
+              <input name="question2" value="Any no-go destinations?" required />
+            </label>
+          </div>
+          <button type="submit">Create Survey</button>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2>4. Record Survey Response</h2>
+        <form id="response-form">
+          <label>
+            Participant
+            <select name="participant_id" required></select>
+          </label>
+          <label>
+            Vibe Answer
+            <input name="vibe" placeholder="Chill beachfront evenings" required />
+          </label>
+          <label>
+            No-Go Answer
+            <input name="no_go" placeholder="Avoid super touristy spots" required />
+          </label>
+          <button type="submit">Submit Response</button>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2>5. Generate AI Recommendations</h2>
+        <form id="recommendation-form">
+          <label>
+            Prompt Variant
+            <input name="prompt_variant" value="baseline" />
+          </label>
+          <label>
+            Candidate Count
+            <input name="candidate_count" type="number" value="3" min="1" max="6" />
+          </label>
+          <button type="submit">Generate</button>
+        </form>
+        <ul id="recommendation-list"></ul>
+      </section>
+
+      <section class="card">
+        <h2>6. Submit Vote</h2>
+        <form id="vote-form">
+          <label>
+            Participant
+            <select name="participant_id" required></select>
+          </label>
+          <div id="ranking-container"></div>
+          <button type="submit">Vote</button>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2>7. Results</h2>
+        <button id="refresh-results">Refresh Results</button>
+        <div id="results-output" class="results-card">No results yet.</div>
+      </section>
+    </main>
+
+    <footer>
+      <p>Pack Vote &mdash; AI-assisted group travel planning</p>
+    </footer>
+
+    <script type="module" src="/ui/main.js"></script>
+  </body>
+</html>
+

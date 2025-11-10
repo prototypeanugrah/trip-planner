@@ -1,0 +1,293 @@
+:root {
+  color-scheme: light dark;
+  --bg: #0e1117;
+  --surface: #161b22;
+  --accent: #2f81f7;
+  --text: #f0f6fc;
+  --muted: #8b949e;
+  --border: #30363d;
+  font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+}
+
+header,
+footer {
+  padding: 2rem 4vw;
+  background: linear-gradient(120deg, #1f2933, #111827);
+  border-bottom: 1px solid var(--border);
+}
+
+header h1 {
+  margin: 0 0 0.5rem;
+  font-size: 2rem;
+}
+
+header p,
+footer p {
+  margin: 0;
+  color: var(--muted);
+}
+
+main {
+  padding: 2rem 4vw 4rem;
+  display: grid;
+  gap: 1.5rem;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.35);
+}
+
+.card h2 {
+  margin-top: 0;
+  font-size: 1.3rem;
+}
+
+.status-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.4rem 0;
+  color: var(--muted);
+  border-bottom: 1px dashed var(--border);
+}
+
+.status-row span:last-child {
+  color: var(--text);
+}
+
+form {
+  display: grid;
+  gap: 0.75rem;
+}
+
+label {
+  display: grid;
+  gap: 0.35rem;
+  font-weight: 500;
+}
+
+input,
+textarea,
+select {
+  padding: 0.6rem;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: rgba(15, 23, 42, 0.6);
+  color: var(--text);
+  font-size: 1rem;
+  transition: border 0.2s ease, box-shadow 0.2s ease;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(47, 129, 247, 0.25);
+}
+
+textarea {
+  min-height: 90px;
+  resize: vertical;
+}
+
+button {
+  justify-self: start;
+  padding: 0.65rem 1.4rem;
+  border-radius: 999px;
+  border: none;
+  background: var(--accent);
+  color: white;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(47, 129, 247, 0.4);
+}
+
+.form-grid {
+  display: grid;
+  gap: 0.75rem;
+}
+
+@media (min-width: 720px) {
+  .form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.hint {
+  margin-top: 0.5rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+#recommendation-list {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+#recommendation-list li {
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 1rem 1.2rem;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.recommendation-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.recommendation-header h3 {
+  margin: 0;
+  font-size: 1.15rem;
+  letter-spacing: -0.01em;
+}
+
+.recommendation-description {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.recommendation-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.6rem;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.recommendation-meta span {
+  background: rgba(47, 129, 247, 0.12);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 0.25rem 0.65rem;
+}
+
+.recommendation-lists {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.recommendation-lists ul {
+  margin: 0;
+  padding-left: 1.25rem;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.recommendation-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.recommendation-footer span {
+  opacity: 0.8;
+}
+
+.results-card {
+  margin-top: 1rem;
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 1.2rem;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.results-card h3 {
+  margin: 0;
+}
+
+.results-card .winner-summary {
+  color: var(--muted);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.results-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.results-metrics span {
+  background: rgba(47, 129, 247, 0.12);
+  border-radius: 999px;
+  padding: 0.25rem 0.65rem;
+}
+
+.results-rounds {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.results-rounds h4 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.results-rounds ul {
+  margin: 0.2rem 0 0;
+  padding-left: 1.2rem;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+#ranking-container {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.ranking-item {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.toast {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  background: rgba(17, 24, 39, 0.95);
+  border: 1px solid rgba(100, 116, 139, 0.3);
+  border-radius: 12px;
+  padding: 0.9rem 1.2rem;
+  color: var(--text);
+  box-shadow: 0 15px 35px rgba(15, 23, 42, 0.45);
+  opacity: 0;
+  transform: translateY(-12px);
+  animation: toast-in 0.2s forwards;
+}
+
+@keyframes toast-in {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+

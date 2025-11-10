@@ -1,0 +1,35 @@
+[project]
+name = "packvote"
+version = "0.1.0"
+description = "Pack Vote backend service"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.114.0",
+    "uvicorn[standard]>=0.30.0",
+    "sqlmodel>=0.0.21",
+    "sqlalchemy>=2.0.30",
+    "aiosqlite>=0.20.0",
+    "greenlet>=3.0.3",
+    "httpx>=0.27.0",
+    "twilio>=9.0.0",
+    "python-dotenv>=1.0.1",
+    "prometheus-client>=0.20.0",
+    "slowapi>=0.1.9",
+    "pydantic-settings>=2.2.1",
+    "redis>=5.0.7",
+    "tenacity>=8.4.1",
+    "pydantic>=2.12.4",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=8.2.0",
+    "pytest-asyncio>=0.23.7",
+    "httpx>=0.27.0",
+    "asgi-lifespan>=2.1.0"
+]
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+asyncio_mode = "auto"
