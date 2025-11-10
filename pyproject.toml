@@ -20,6 +20,9 @@ dependencies = [
     "redis>=5.0.7",
     "tenacity>=8.4.1",
     "pydantic>=2.12.4",
+    "pytest>=8.4.2",
+    "asgi-lifespan>=2.1.0",
+    "pytest-asyncio>=1.2.0",
 ]
 
 [project.optional-dependencies]

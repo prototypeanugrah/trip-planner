@@ -6,8 +6,8 @@ from typing import List
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
 from sqlalchemy.orm import selectinload
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ...enums import AuditEventType
@@ -41,7 +41,7 @@ async def generate_recommendations(
         .where(Trip.id == trip_id)
         .options(selectinload(Trip.participants), selectinload(Trip.surveys))
     )
-    trip = trip_result.scalar_one_or_none()
+    trip = trip_result.one_or_none()
     if not trip:
         raise HTTPException(status_code=404, detail="Trip not found")
 
@@ -58,5 +58,3 @@ async def generate_recommendations(
     for rec in recommendations:
         await session.refresh(rec)
     return recommendations
-
-

@@ -1,6 +1,6 @@
 """SQLModel models representing Pack Vote domain entities."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 from uuid import UUID, uuid4
 
@@ -18,12 +18,18 @@ from .enums import (
 )
 
 
+def _utcnow() -> datetime:
+    """Return timezone-aware current time for DB timestamps."""
+
+    return datetime.now(timezone.utc)
+
+
 class TimestampMixin(SQLModel):
-    created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
+    created_at: datetime = Field(default_factory=_utcnow, nullable=False)
     updated_at: datetime = Field(
-        default_factory=datetime.utcnow,
+        default_factory=_utcnow,
         nullable=False,
-        sa_column_kwargs={"onupdate": datetime.utcnow},
+        sa_column_kwargs={"onupdate": _utcnow},
     )
 
 
@@ -108,7 +114,7 @@ class SurveyResponse(TimestampMixin, SQLModel, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     survey_id: UUID = Field(foreign_key="surveys.id", index=True)
     participant_id: UUID = Field(foreign_key="participants.id", index=True)
-    answers: Dict[str, str] = Field(default_factory=dict, sa_column=Column(JSON))
+    answers: Dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
     channel: str = Field(default="sms", max_length=32)
     prompt_variant: str = Field(default="baseline")
 
@@ -169,9 +175,7 @@ class VoteItem(TimestampMixin, SQLModel, table=True):
 
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     vote_id: UUID = Field(foreign_key="votes.id", index=True)
-    recommendation_id: UUID = Field(
-        foreign_key="destination_recommendations.id", index=True
-    )
+    recommendation_id: UUID = Field(foreign_key="destination_recommendations.id", index=True)
     rank: int = Field(ge=1)
 
     vote: "Vote" = Relationship(back_populates="items")

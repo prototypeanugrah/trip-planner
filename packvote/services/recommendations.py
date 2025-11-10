@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Dict, Iterable, List
+from typing import Dict, List
 
-from sqlalchemy import select
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ..enums import RecommendationStatus
@@ -151,14 +151,14 @@ class RecommendationService:
 
     async def _build_prompt(self, session: AsyncSession, trip: Trip, request: RecommendationCreate) -> str:
         surveys = await session.exec(select(Survey).where(Survey.trip_id == trip.id))
-        survey_list = surveys.scalars().all()
+        survey_list = surveys.all()
         responses = await session.exec(
             select(SurveyResponse)
             .where(SurveyResponse.prompt_variant == request.prompt_variant)
             .join(Survey)
             .where(Survey.trip_id == trip.id)
         )
-        response_list = responses.scalars().all()
+        response_list = responses.all()
 
         prompt_lines = [
             f"Trip name: {trip.name}",
@@ -217,29 +217,3 @@ class RecommendationService:
             )
             seen_titles.add(key)
         return payloads
-
-
-def map_recommendations_to_schema(recommendations: Iterable[DestinationRecommendation]) -> list[dict]:
-    payload: list[dict] = []
-    for rec in recommendations:
-        payload.append(
-            {
-                "id": rec.id,
-                "trip_id": rec.trip_id,
-                "title": rec.title,
-                "description": rec.description,
-                "prompt_version": rec.prompt_version,
-                "model_name": rec.model_name,
-                "prompt_variant": rec.prompt_variant,
-                "status": rec.status,
-                "score": rec.score,
-                "cost_usd": rec.cost_usd,
-                "evaluation": rec.evaluation,
-                "extra": rec.extra,
-                "created_at": rec.created_at,
-                "updated_at": rec.updated_at,
-            }
-        )
-    return payload
-
-

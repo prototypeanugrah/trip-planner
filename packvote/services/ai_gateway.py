@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import json
 import random
 import re
@@ -149,9 +148,6 @@ class ModelGateway:
         }
         self.default_order = ["openai"]
 
-    def register_provider(self, key: str, provider: ModelProvider) -> None:
-        self.providers[key] = provider
-
     def choose_provider(self, request: ModelRequest) -> ModelProvider:
         # AB testing hook: allow overriding via metadata
         if provider_key := request.metadata.get("provider"):
@@ -195,9 +191,6 @@ class ModelGateway:
         ai_request_latency.labels(provider_name, request.prompt_variant).observe(duration)
         response.latency_ms = duration * 1000
         return response
-
-    async def generate_batch(self, *requests: ModelRequest) -> list[ModelResponse]:
-        return await asyncio.gather(*(self.generate(request) for request in requests))
 
     @staticmethod
     def format_recommendation_payload(
@@ -294,5 +287,3 @@ class ModelGateway:
             if summary and summary[-1] not in {".", "!", "?"}:
                 summary += "..."
         return summary
-
-

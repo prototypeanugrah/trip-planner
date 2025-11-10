@@ -6,8 +6,8 @@ from typing import List
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
 from sqlalchemy.orm import selectinload
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ...enums import AuditEventType, VoteStatus
@@ -33,7 +33,7 @@ async def _get_open_vote_round(session: AsyncSession, trip_id: UUID) -> VoteRoun
         .where(VoteRound.trip_id == trip_id, VoteRound.status == VoteStatus.open)
         .options(selectinload(VoteRound.votes))
     )
-    vote_round = vote_round_result.scalar_one_or_none()
+    vote_round = vote_round_result.one_or_none()
     if vote_round:
         return vote_round
     vote_round = VoteRound(trip_id=trip_id)
@@ -61,7 +61,7 @@ async def submit_vote(
             DestinationRecommendation.id.in_(recommendation_uuid_ids),
         )
     )
-    recs = recs_result.scalars().all()
+    recs = recs_result.all()
     if len(recs) != len(recommendation_ids):
         raise HTTPException(status_code=400, detail="Invalid recommendation in rankings")
 
@@ -108,12 +108,12 @@ async def get_results(trip_id: UUID, session: AsyncSession = Depends(get_db_sess
         .order_by(VoteRound.created_at.desc())
         .options(selectinload(VoteRound.votes).selectinload(Vote.items))
     )
-    vote_round = vote_round_result.scalars().first()
+    vote_round = vote_round_result.first()
     if not vote_round:
         raise HTTPException(status_code=404, detail="No vote round for trip")
 
     recs_result = await session.exec(select(DestinationRecommendation).where(DestinationRecommendation.trip_id == trip_id))
-    recommendations = recs_result.scalars().all()
+    recommendations = recs_result.all()
     results = compute_instant_runoff(recommendations, vote_round.votes)
     vote_round.results = results
     vote_round.status = VoteStatus.closed
@@ -123,5 +123,3 @@ async def get_results(trip_id: UUID, session: AsyncSession = Depends(get_db_sess
         vote_round=VoteRoundRead.model_validate(vote_round),
         recommendations=[RecommendationRead.model_validate(rec) for rec in recommendations],
     )
-
-

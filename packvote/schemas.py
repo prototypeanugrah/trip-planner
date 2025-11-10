@@ -116,7 +116,7 @@ class SurveyRead(SurveyCreate):
 
 class SurveyResponseCreate(APIModel):
     participant_id: UUID
-    answers: Dict[str, str]
+    answers: Dict[str, Any]
     channel: str = "sms"
     prompt_variant: str = Field(default="baseline")
 

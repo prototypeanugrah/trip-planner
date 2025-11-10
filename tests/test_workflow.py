@@ -3,6 +3,8 @@ from __future__ import annotations
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+API_PREFIX = "/api"
+
 
 @pytest.mark.asyncio
 async def test_end_to_end_trip_flow(app) -> None:
@@ -17,20 +19,20 @@ async def test_end_to_end_trip_flow(app) -> None:
             "budget_max": 1500,
             "tags": ["snow", "nightlife"],
         }
-        trip_response = await client.post("/trips", json=trip_payload)
+        trip_response = await client.post(f"{API_PREFIX}/trips", json=trip_payload)
         assert trip_response.status_code == 201, trip_response.text
         trip = trip_response.json()
         trip_id = trip["id"]
 
         participant_response = await client.post(
-            f"/trips/{trip_id}/participants",
+            f"{API_PREFIX}/trips/{trip_id}/participants",
             json={"name": "Jamie", "phone": "+15559876543"},
         )
         assert participant_response.status_code == 201, participant_response.text
         participant_id = participant_response.json()["id"]
 
         survey_response = await client.post(
-            f"/trips/{trip_id}/surveys",
+            f"{API_PREFIX}/trips/{trip_id}/surveys",
             json={
                 "name": "Preferences",
                 "survey_type": "preferences",
@@ -44,7 +46,7 @@ async def test_end_to_end_trip_flow(app) -> None:
         survey_id = survey_response.json()["id"]
 
         response_submit = await client.post(
-            f"/trips/{trip_id}/surveys/{survey_id}/responses",
+            f"{API_PREFIX}/trips/{trip_id}/surveys/{survey_id}/responses",
             json={
                 "participant_id": participant_id,
                 "answers": {"vibe": "party", "budget": "mid"},
@@ -53,7 +55,7 @@ async def test_end_to_end_trip_flow(app) -> None:
         assert response_submit.status_code == 201, response_submit.text
 
         recommendations_response = await client.post(
-            f"/trips/{trip_id}/recommendations",
+            f"{API_PREFIX}/trips/{trip_id}/recommendations",
             json={"candidate_count": 3},
         )
         assert recommendations_response.status_code == 201, recommendations_response.text
@@ -67,10 +69,10 @@ async def test_end_to_end_trip_flow(app) -> None:
                 for idx, rec in enumerate(recommendations)
             ],
         }
-        vote_response = await client.post(f"/trips/{trip_id}/votes", json=vote_payload)
+        vote_response = await client.post(f"{API_PREFIX}/trips/{trip_id}/votes", json=vote_payload)
         assert vote_response.status_code == 201, vote_response.text
 
-        results_response = await client.get(f"/trips/{trip_id}/results")
+        results_response = await client.get(f"{API_PREFIX}/trips/{trip_id}/results")
         assert results_response.status_code == 200, results_response.text
         results = results_response.json()
         assert results["vote_round"]["status"] == "closed"
@@ -79,3 +81,8 @@ async def test_end_to_end_trip_flow(app) -> None:
         metrics_response = await client.get("/metrics")
         assert metrics_response.status_code == 200
 
+        delete_response = await client.delete(f"{API_PREFIX}/trips/{trip_id}")
+        assert delete_response.status_code == 204, delete_response.text
+
+        confirm_deleted = await client.get(f"{API_PREFIX}/trips/{trip_id}")
+        assert confirm_deleted.status_code == 404

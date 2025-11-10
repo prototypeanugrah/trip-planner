@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from collections import Counter, defaultdict
+from collections import Counter
 from typing import Iterable, List
 from uuid import UUID
 
-from ..models import DestinationRecommendation, Vote, VoteItem, VoteRound
+from ..models import DestinationRecommendation, Vote
 
 
 def instant_runoff_round(recommendations: List[UUID], ballots: List[List[UUID]]) -> tuple[UUID | None, dict[UUID, int]]:
@@ -51,11 +51,3 @@ def compute_instant_runoff(recommendations: Iterable[DestinationRecommendation],
         "winner": str(winner) if winner else None,
         "rounds": [{str(candidate): votes for candidate, votes in round_tally.items()} for round_tally in rounds],
     }
-
-
-def summarize_votes(vote_round: VoteRound) -> dict:
-    results = vote_round.results.copy()
-    results.setdefault("status", vote_round.status.value)
-    return results
-
-

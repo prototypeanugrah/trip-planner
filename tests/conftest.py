@@ -24,8 +24,12 @@ def event_loop() -> asyncio.AbstractEventLoop:
 async def app(tmp_path: Path) -> AsyncIterator[FastAPI]:
     db_path = tmp_path / "test.db"
     os.environ["PACKVOTE_DATABASE_URL"] = f"sqlite+aiosqlite:///{db_path}"
-    os.environ.setdefault("PACKVOTE_OPENAI_API_KEY", "")
-    os.environ.setdefault("OPENAI_API_KEY", "")
+    os.environ.setdefault("PACKVOTE_ENVIRONMENT", "production")
+
+    prev_pack_openai = os.environ.get("PACKVOTE_OPENAI_API_KEY")
+    prev_openai = os.environ.get("OPENAI_API_KEY")
+    os.environ["PACKVOTE_OPENAI_API_KEY"] = ""
+    os.environ["OPENAI_API_KEY"] = ""
     get_settings.cache_clear()  # type: ignore[attr-defined]
     from packvote import db as db_module
     db_module._engine = None  # type: ignore[attr-defined]
@@ -35,6 +39,12 @@ async def app(tmp_path: Path) -> AsyncIterator[FastAPI]:
     async with LifespanManager(test_app):
         yield test_app
     os.environ.pop("PACKVOTE_DATABASE_URL", None)
+    if prev_pack_openai is None:
+        os.environ.pop("PACKVOTE_OPENAI_API_KEY", None)
+    else:
+        os.environ["PACKVOTE_OPENAI_API_KEY"] = prev_pack_openai
+    if prev_openai is None:
+        os.environ.pop("OPENAI_API_KEY", None)
+    else:
+        os.environ["OPENAI_API_KEY"] = prev_openai
     get_settings.cache_clear()  # type: ignore[attr-defined]
-
-

@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Dict
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from sqlalchemy import select
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ...models import Participant, Survey, SurveyResponse
@@ -28,7 +28,7 @@ async def twilio_sms_webhook(
 
     payload = SMSWebhookPayload.model_validate(form)
     participant_result = await session.exec(select(Participant).where(Participant.phone == payload.from_number))
-    participant = participant_result.scalar_one_or_none()
+    participant = participant_result.one_or_none()
     if not participant:
         raise HTTPException(status_code=404, detail="Participant not recognized")
 
@@ -37,7 +37,7 @@ async def twilio_sms_webhook(
         .where(Survey.trip_id == participant.trip_id)
         .order_by(Survey.created_at.desc())
     )
-    survey = survey_result.scalars().first()
+    survey = survey_result.first()
     if not survey:
         raise HTTPException(status_code=404, detail="No active survey")
 
@@ -51,4 +51,3 @@ async def twilio_sms_webhook(
     session.add(response)
     await session.commit()
     return {"status": "received"}
-

@@ -6,7 +6,7 @@ from typing import List
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ...models import AvailabilityWindow, Participant, Trip
@@ -28,11 +28,36 @@ async def add_participant(
     payload: ParticipantCreate,
     session: AsyncSession = Depends(get_db_session),
 ) -> Participant:
+    from ...enums import SurveyType
+    from ...models import Survey, SurveyResponse
+
     trip = await session.get(Trip, trip_id)
     if not trip:
         raise HTTPException(status_code=404, detail="Trip not found")
     participant = Participant(trip_id=trip.id, **payload.model_dump())
     session.add(participant)
+    await session.flush()  # Flush to get participant ID
+
+    # Find the preferences survey for this trip
+    result = await session.exec(
+        select(Survey)
+        .where(Survey.trip_id == trip_id)
+        .where(Survey.survey_type == SurveyType.preferences)
+        .where(Survey.is_active == True)
+    )
+    preferences_survey = result.one_or_none()
+
+    # If preferences survey exists, create a placeholder response
+    # The actual answers will be submitted via a separate endpoint
+    if preferences_survey:
+        survey_response = SurveyResponse(
+            survey_id=preferences_survey.id,
+            participant_id=participant.id,
+            answers={},
+            channel="web",
+        )
+        session.add(survey_response)
+
     await session.commit()
     await session.refresh(participant)
     return participant
@@ -63,5 +88,3 @@ async def add_availability_window(
     await session.commit()
     await session.refresh(window)
     return window
-
-

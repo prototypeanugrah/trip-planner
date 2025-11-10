@@ -1,6 +1,6 @@
 """Health check endpoints."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter
 
@@ -17,7 +17,6 @@ async def healthcheck() -> dict:
         "status": "ok",
         "app": settings.app_name,
         "environment": settings.environment,
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
-
 

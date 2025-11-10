@@ -1,174 +1,231 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Pack Vote Control Center</title>
-    <link rel="stylesheet" href="/ui/styles.css" />
-  </head>
-  <body>
-    <header>
-      <h1>Pack Vote Control Center</h1>
-      <p>Create a trip, collect preferences, generate AI recommendations, and pick a winner.</p>
-    </header>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pack Vote - Plan Your Trip Together</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Modal Overlay -->
+    <div id="modalOverlay" class="modal-overlay active">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h1>Start planning</h1>
+                <p class="modal-subtitle">Would you like to create a new trip or load an existing one?</p>
+                <div class="modal-mode-toggle">
+                    <button type="button" id="modalModeCreate" class="modal-mode-btn active">Create new trip</button>
+                    <button type="button" id="modalModeExisting" class="modal-mode-btn">Load existing trip</button>
+                </div>
+            </div>
 
-    <main>
-      <section id="status-panel" class="card">
-        <h2>Status</h2>
-        <div class="status-row">
-          <span>Trip:</span><span id="trip-status">Not created</span>
+            <div id="modalCreateSection" class="modal-section">
+            <form id="createTripForm">
+                <!-- Project Name -->
+                <div class="form-group">
+                    <input
+                        type="text"
+                        id="projectName"
+                        name="name"
+                        placeholder="Trip name"
+                        required
+                        class="form-input"
+                        autocomplete="off"
+                        spellcheck="false"
+                    >
+                </div>
+
+                <!-- Organizer Info -->
+                <div class="form-group">
+                    <input
+                        type="text"
+                        id="organizerName"
+                        name="organizer_name"
+                        placeholder="Your name"
+                        required
+                        class="form-input"
+                        autocomplete="name"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <input
+                        type="tel"
+                        id="organizerPhone"
+                        name="organizer_phone"
+                        placeholder="Your phone number (10 digits)"
+                        required
+                        class="form-input"
+                        autocomplete="tel"
+                        maxlength="15"
+                    >
+                    <div id="organizerPhoneError" class="phone-error" style="display: none;"></div>
+                </div>
+
+                <div class="form-group">
+                    <input
+                        type="email"
+                        id="organizerEmail"
+                        name="organizer_email"
+                        placeholder="Your email (optional)"
+                        class="form-input"
+                        autocomplete="email"
+                    >
+                </div>
+
+                <!-- Travel Date Section -->
+                <div class="form-section">
+                    <h3 class="section-title">When are you planning to travel?</h3>
+                    <div class="form-group">
+                        <input
+                            type="date"
+                            id="travelDate"
+                            name="target_start_date"
+                            required
+                            class="form-input date-input"
+                        >
+                    </div>
+                </div>
+
+                <!-- Duration Section -->
+                <div class="form-section">
+                    <h3 class="section-title">How many days are you planning to travel?</h3>
+                    <div class="duration-info">Up to 60 days</div>
+                    <div class="duration-control">
+                        <button type="button" class="duration-btn" id="decrementBtn" aria-label="Decrease days">−</button>
+                        <div class="duration-display">
+                            <input
+                                type="number"
+                                id="durationDays"
+                                name="duration_days"
+                                value="3"
+                                min="1"
+                                max="60"
+                                required
+                                readonly
+                                tabindex="-1"
+                            >
+                        </div>
+                        <button type="button" class="duration-btn" id="incrementBtn" aria-label="Increase days">+</button>
+                    </div>
+                </div>
+
+                <!-- Organizer Trip Details -->
+                <div class="form-section">
+                    <h3 class="section-title">Tell us about your trip</h3>
+
+                    <div class="form-group">
+                        <label class="form-label">Where are you traveling from?</label>
+                        <input
+                            type="text"
+                            id="organizerLocation"
+                            name="organizer_location"
+                            placeholder="Austin, TX"
+                            class="form-input"
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">What is your budget?</label>
+                        <div class="budget-options">
+                            <label class="budget-card">
+                                <input type="radio" name="organizer_budget" value="low" required>
+                                <div class="budget-content">
+                                    <div class="budget-title">Low</div>
+                                    <div class="budget-range">0 – 1000 USD</div>
+                                </div>
+                            </label>
+                            <label class="budget-card">
+                                <input type="radio" name="organizer_budget" value="medium">
+                                <div class="budget-content">
+                                    <div class="budget-title">Medium</div>
+                                    <div class="budget-range">1000 – 2500 USD</div>
+                                </div>
+                            </label>
+                            <label class="budget-card">
+                                <input type="radio" name="organizer_budget" value="high">
+                                <div class="budget-content">
+                                    <div class="budget-title">High</div>
+                                    <div class="budget-range">2500+ USD</div>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">What experiences are you interested in?</label>
+                        <div class="preferences-grid">
+                            <label class="preference-chip">
+                                <input type="checkbox" name="organizer_preferences" value="beaches">
+                                <span>Beaches</span>
+                            </label>
+                            <label class="preference-chip">
+                                <input type="checkbox" name="organizer_preferences" value="city_sightseeing">
+                                <span>City sightseeing</span>
+                            </label>
+                            <label class="preference-chip">
+                                <input type="checkbox" name="organizer_preferences" value="outdoor_adventures">
+                                <span>Outdoor adventures</span>
+                            </label>
+                            <label class="preference-chip">
+                                <input type="checkbox" name="organizer_preferences" value="festivals_events">
+                                <span>Festivals/events</span>
+                            </label>
+                            <label class="preference-chip">
+                                <input type="checkbox" name="organizer_preferences" value="food_exploration">
+                                <span>Food exploration</span>
+                            </label>
+                            <label class="preference-chip">
+                                <input type="checkbox" name="organizer_preferences" value="nightlife">
+                                <span>Nightlife</span>
+                            </label>
+                            <label class="preference-chip">
+                                <input type="checkbox" name="organizer_preferences" value="shopping">
+                                <span>Shopping</span>
+                            </label>
+                            <label class="preference-chip">
+                                <input type="checkbox" name="organizer_preferences" value="spa_wellness">
+                                <span>Spa & wellness</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="modal-actions">
+                    <button type="submit" class="btn btn-primary">Create Project</button>
+                    <button type="button" class="btn btn-secondary" id="cancelBtn">Cancel</button>
+                </div>
+            </form>
+            </div>
+
+            <div id="modalExistingSection" class="modal-section hidden">
+                <div id="modalExistingEmpty" class="existing-empty-state">
+                    <h2>No trips yet</h2>
+                    <p>Create your first trip to get started.</p>
+                </div>
+                <div id="modalExistingTrips" class="existing-trip-list"></div>
+                <div class="modal-actions existing-actions">
+                    <button type="button" class="btn btn-secondary" id="closeExistingBtn">Close</button>
+                </div>
+            </div>
         </div>
-        <div class="status-row">
-          <span>Participants:</span><span id="participant-status">0</span>
+    </div>
+
+    <!-- Main Content (Hidden initially) -->
+    <div id="mainContent" class="main-content hidden">
+        <div class="container">
+            <header class="app-header">
+                <h1>Pack Vote</h1>
+                <button class="btn btn-primary" id="newTripBtn">+ New Trip</button>
+            </header>
+
+            <div id="tripsList" class="trips-list">
+                <!-- Trips will be loaded here -->
+            </div>
         </div>
-        <div class="status-row">
-          <span>Survey:</span><span id="survey-status">Not created</span>
-        </div>
-        <div class="status-row">
-          <span>Recommendations:</span><span id="recommendation-status">0</span>
-        </div>
-        <div class="status-row">
-          <span>Vote Result:</span><span id="result-status">N/A</span>
-        </div>
-      </section>
+    </div>
 
-      <section class="card">
-        <h2>1. Create Trip</h2>
-        <form id="trip-form">
-          <label>
-            Trip Name
-            <input name="name" placeholder="Best Friends Getaway" required />
-          </label>
-          <label>
-            Organizer Name
-            <input name="organizer_name" placeholder="Taylor" required />
-          </label>
-          <label>
-            Organizer Phone
-            <input name="organizer_phone" placeholder="+15551234567" required />
-          </label>
-          <label>
-            Description
-            <textarea name="description" placeholder="Tell the AI what the group is into"></textarea>
-          </label>
-          <div class="form-grid">
-            <label>
-              Budget Min (USD)
-              <input name="budget_min" type="number" min="0" />
-            </label>
-            <label>
-              Budget Max (USD)
-              <input name="budget_max" type="number" min="0" />
-            </label>
-          </div>
-          <label>
-            Tags (comma separated)
-            <input name="tags" placeholder="adventure, beach" />
-          </label>
-          <button type="submit">Create Trip</button>
-        </form>
-        <p class="hint">After creating the trip, continue with the next steps below.</p>
-      </section>
-
-      <section class="card">
-        <h2>2. Add Participant</h2>
-        <form id="participant-form">
-          <label>
-            Name
-            <input name="name" placeholder="Jordan" required />
-          </label>
-          <label>
-            Phone
-            <input name="phone" placeholder="+15557654321" required />
-          </label>
-          <label>
-            Email
-            <input name="email" type="email" placeholder="optional" />
-          </label>
-          <button type="submit">Add Participant</button>
-        </form>
-      </section>
-
-      <section class="card">
-        <h2>3. Create Survey</h2>
-        <form id="survey-form">
-          <label>
-            Survey Name
-            <input name="name" value="Preference Pulse" required />
-          </label>
-          <div class="form-grid">
-            <label>
-              Question 1
-              <input name="question1" value="What's your ideal vibe?" required />
-            </label>
-            <label>
-              Question 2
-              <input name="question2" value="Any no-go destinations?" required />
-            </label>
-          </div>
-          <button type="submit">Create Survey</button>
-        </form>
-      </section>
-
-      <section class="card">
-        <h2>4. Record Survey Response</h2>
-        <form id="response-form">
-          <label>
-            Participant
-            <select name="participant_id" required></select>
-          </label>
-          <label>
-            Vibe Answer
-            <input name="vibe" placeholder="Chill beachfront evenings" required />
-          </label>
-          <label>
-            No-Go Answer
-            <input name="no_go" placeholder="Avoid super touristy spots" required />
-          </label>
-          <button type="submit">Submit Response</button>
-        </form>
-      </section>
-
-      <section class="card">
-        <h2>5. Generate AI Recommendations</h2>
-        <form id="recommendation-form">
-          <label>
-            Prompt Variant
-            <input name="prompt_variant" value="baseline" />
-          </label>
-          <label>
-            Candidate Count
-            <input name="candidate_count" type="number" value="3" min="1" max="6" />
-          </label>
-          <button type="submit">Generate</button>
-        </form>
-        <ul id="recommendation-list"></ul>
-      </section>
-
-      <section class="card">
-        <h2>6. Submit Vote</h2>
-        <form id="vote-form">
-          <label>
-            Participant
-            <select name="participant_id" required></select>
-          </label>
-          <div id="ranking-container"></div>
-          <button type="submit">Vote</button>
-        </form>
-      </section>
-
-      <section class="card">
-        <h2>7. Results</h2>
-        <button id="refresh-results">Refresh Results</button>
-        <div id="results-output" class="results-card">No results yet.</div>
-      </section>
-    </main>
-
-    <footer>
-      <p>Pack Vote &mdash; AI-assisted group travel planning</p>
-    </footer>
-
-    <script type="module" src="/ui/main.js"></script>
-  </body>
+    <script src="main.js"></script>
+</body>
 </html>
-

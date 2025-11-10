@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Request, Response
@@ -21,7 +22,13 @@ from .services.rate_limit import limiter
 
 def create_app() -> FastAPI:
     settings = get_settings()
-    app = FastAPI(title=settings.app_name)
+
+    @asynccontextmanager
+    async def lifespan(_: FastAPI):
+        await init_db()
+        yield
+
+    app = FastAPI(title=settings.app_name, lifespan=lifespan)
 
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, _rate_limit_handler)
@@ -34,10 +41,6 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
-
-    @app.on_event("startup")
-    async def _startup() -> None:  # pragma: no cover - framework hook
-        await init_db()
 
     @app.get("/metrics")
     async def metrics() -> Response:  # pragma: no cover - external scrape
@@ -52,11 +55,10 @@ def create_app() -> FastAPI:
         async def root() -> RedirectResponse:
             return RedirectResponse(url="/ui")
 
-    app.include_router(api_router)
+    app.include_router(api_router, prefix="/api")
     return app
 
 
 async def _rate_limit_handler(request: Request, exc: RateLimitExceeded) -> JSONResponse:
     return JSONResponse(status_code=429, content={"detail": "Rate limit exceeded"})
-
 

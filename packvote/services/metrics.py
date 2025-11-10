@@ -1,6 +1,6 @@
 """Prometheus metrics definitions."""
 
-from prometheus_client import Counter, Gauge, Histogram
+from prometheus_client import Counter, Histogram
 
 sms_sent_counter = Counter(
     "packvote_sms_sent_total",
@@ -26,11 +26,3 @@ recommendation_generated_counter = Counter(
     "Number of destination recommendations generated",
     labelnames=("prompt_variant", "model_name"),
 )
-
-vote_round_gauge = Gauge(
-    "packvote_vote_rounds_open",
-    "Number of vote rounds currently open",
-    labelnames=("trip_id",),
-)
-
-

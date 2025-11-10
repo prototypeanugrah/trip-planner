@@ -1,448 +1,404 @@
-const state = {
-  tripId: null,
-  participants: [],
-  surveyId: null,
-  recommendations: [],
-};
+// API Configuration
+const API_BASE_URL = '/api';
 
-const els = {
-  tripForm: document.querySelector('#trip-form'),
-  participantForm: document.querySelector('#participant-form'),
-  surveyForm: document.querySelector('#survey-form'),
-  responseForm: document.querySelector('#response-form'),
-  recommendationForm: document.querySelector('#recommendation-form'),
-  recommendationList: document.querySelector('#recommendation-list'),
-  voteForm: document.querySelector('#vote-form'),
-  rankingContainer: document.querySelector('#ranking-container'),
-  resultsOutput: document.querySelector('#results-output'),
-  refreshResults: document.querySelector('#refresh-results'),
-  participantSelects: document.querySelectorAll('select[name="participant_id"]'),
-  status: {
-    trip: document.querySelector('#trip-status'),
-    participants: document.querySelector('#participant-status'),
-    survey: document.querySelector('#survey-status'),
-    recs: document.querySelector('#recommendation-status'),
-    result: document.querySelector('#result-status'),
-  },
-};
+// DOM Elements
+const modalOverlay = document.getElementById('modalOverlay');
+const mainContent = document.getElementById('mainContent');
+const createTripForm = document.getElementById('createTripForm');
+const cancelBtn = document.getElementById('cancelBtn');
+const newTripBtn = document.getElementById('newTripBtn');
+const decrementBtn = document.getElementById('decrementBtn');
+const incrementBtn = document.getElementById('incrementBtn');
+const durationInput = document.getElementById('durationDays');
+const tripsList = document.getElementById('tripsList');
+const modeCreateBtn = document.getElementById('modalModeCreate');
+const modeExistingBtn = document.getElementById('modalModeExisting');
+const modalCreateSection = document.getElementById('modalCreateSection');
+const modalExistingSection = document.getElementById('modalExistingSection');
+const modalExistingTrips = document.getElementById('modalExistingTrips');
+const modalExistingEmpty = document.getElementById('modalExistingEmpty');
+const closeExistingBtn = document.getElementById('closeExistingBtn');
+const projectNameInput = document.getElementById('projectName');
 
-const api = async (path, options = {}) => {
-  const response = await fetch(path, {
-    headers: { 'Content-Type': 'application/json' },
-    ...options,
-  });
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(text || response.statusText);
-  }
-  if (response.status === 204) return null;
-  return response.json();
-};
+// State Management
+let cachedTrips = [];
+let currentModalMode = 'create';
 
-const toast = (message, intent = 'info') => {
-  const node = document.createElement('div');
-  node.className = 'toast';
-  node.style.borderColor = intent === 'error' ? '#f87171' : '#2f81f7';
-  node.textContent = message;
-  document.body.appendChild(node);
-  setTimeout(() => node.remove(), 2600);
-};
+// Initialize Application
+document.addEventListener('DOMContentLoaded', async () => {
+    setupEventListeners();
+    await checkExistingTrips();
+});
 
-const ensureTrip = () => {
-  if (!state.tripId) {
-    throw new Error('Please create a trip first.');
-  }
-};
+// Event Listeners Setup
+function setupEventListeners() {
+    // Form submission
+    createTripForm.addEventListener('submit', handleFormSubmit);
 
-const updateParticipantOptions = () => {
-  els.participantSelects.forEach((select) => {
-    select.innerHTML = '<option value="">Select participant</option>';
-    state.participants.forEach((p) => {
-      const opt = document.createElement('option');
-      opt.value = p.id;
-      opt.textContent = p.name;
-      select.appendChild(opt);
+    // Modal controls
+    cancelBtn.addEventListener('click', handleCancel);
+    newTripBtn.addEventListener('click', () => showModal('create'));
+    modeCreateBtn?.addEventListener('click', () => switchModalMode('create'));
+    modeExistingBtn?.addEventListener('click', () => switchModalMode('existing'));
+    closeExistingBtn?.addEventListener('click', hideModal);
+
+    // Duration controls
+    decrementBtn.addEventListener('click', () => updateDuration(-1));
+    incrementBtn.addEventListener('click', () => updateDuration(1));
+    durationInput.addEventListener('input', handleDurationInput);
+
+    // Phone validation
+    const organizerPhoneInput = document.getElementById('organizerPhone');
+    if (organizerPhoneInput) {
+        organizerPhoneInput.addEventListener('input', validateOrganizerPhone);
+        organizerPhoneInput.addEventListener('blur', validateOrganizerPhone);
+    }
+
+    // Close modal on overlay click
+    modalOverlay.addEventListener('click', (e) => {
+        if (e.target === modalOverlay && cachedTrips.length > 0) {
+            hideModal();
+        }
     });
-  });
-  els.status.participants.textContent = String(state.participants.length);
-};
+}
 
-const updateRecommendationsUI = () => {
-  els.recommendationList.innerHTML = '';
-  els.rankingContainer.innerHTML = '';
-  state.recommendations.forEach((rec, idx) => {
-    const item = document.createElement('li');
-    const extra = rec.extra || {};
-    const highlights = Array.isArray(extra.highlights)
-      ? extra.highlights
-      : extra.highlights
-        ? [extra.highlights]
-        : [];
-    const tips = Array.isArray(extra.travel_tips)
-      ? extra.travel_tips
-      : extra.travel_tips
-        ? [extra.travel_tips]
-        : [];
-
-    const header = document.createElement('div');
-    header.className = 'recommendation-header';
-    const title = document.createElement('h3');
-    title.textContent = rec.title;
-    const description = document.createElement('p');
-    description.className = 'recommendation-description';
-    description.textContent = rec.description;
-    header.append(title, description);
-    item.appendChild(header);
-
-    const meta = document.createElement('div');
-    meta.className = 'recommendation-meta';
-    const metaEntries = [];
-    if (extra.vibe) metaEntries.push(`Vibe: ${extra.vibe}`);
-    if (typeof extra.estimated_cost === 'number') {
-      metaEntries.push(`Est. Cost: $${Number(extra.estimated_cost).toLocaleString()}`);
+// Check if user has existing trips
+async function checkExistingTrips() {
+    try {
+        cachedTrips = await fetchTrips();
+        displayTrips(cachedTrips);
+        renderExistingTrips(cachedTrips);
+    } catch (error) {
+        console.error('Error checking trips:', error);
+        cachedTrips = [];
+        renderExistingTrips(cachedTrips, error);
+    } finally {
+        showModal('create');
     }
-    if (typeof extra.confidence_score === 'number') {
-      metaEntries.push(`Confidence: ${(extra.confidence_score * 100).toFixed(0)}%`);
-    }
-    if (metaEntries.length === 0) {
-      metaEntries.push('Model curated suggestion');
-    }
-    metaEntries.forEach((text) => {
-      const badge = document.createElement('span');
-      badge.textContent = text;
-      meta.appendChild(badge);
-    });
-    item.appendChild(meta);
+}
 
-    if (highlights.length || tips.length) {
-      const listContainer = document.createElement('div');
-      listContainer.className = 'recommendation-lists';
+// Fetch trips from API
+async function fetchTrips() {
+    const response = await fetch(`${API_BASE_URL}/trips`);
 
-      if (highlights.length) {
-        const block = document.createElement('div');
-        const heading = document.createElement('strong');
-        heading.textContent = 'Highlights';
-        const ul = document.createElement('ul');
-        highlights.forEach((entry) => {
-          const li = document.createElement('li');
-          li.textContent = entry;
-          ul.appendChild(li);
+    if (!response.ok) {
+        throw new Error('Failed to fetch trips');
+    }
+
+    return await response.json();
+}
+
+// Display trips in the list
+function displayTrips(trips) {
+    if (trips.length === 0) {
+        tripsList.innerHTML = `
+            <div class="empty-state">
+                <h2>No trips yet</h2>
+                <p>Create your first trip to get started!</p>
+            </div>
+        `;
+        return;
+    }
+
+    tripsList.innerHTML = trips.map(trip => `
+        <div class="trip-card" onclick="viewTrip('${trip.id}')">
+            <h3>${escapeHtml(trip.name)}</h3>
+            ${trip.description ? `<p>${escapeHtml(trip.description)}</p>` : ''}
+            <div class="trip-meta">
+                <span>Status: ${trip.status}</span>
+                ${trip.target_start_date ? `<span>Start: ${formatDate(trip.target_start_date)}</span>` : ''}
+                ${trip.target_end_date ? `<span>End: ${formatDate(trip.target_end_date)}</span>` : ''}
+            </div>
+        </div>
+    `).join('');
+}
+
+function renderExistingTrips(trips, error) {
+    if (!modalExistingTrips || !modalExistingEmpty) return;
+
+    if (error) {
+        modalExistingEmpty.querySelector('h2').textContent = 'Unable to load trips';
+        modalExistingEmpty.querySelector('p').textContent = 'Please try again later or refresh.';
+    } else {
+        modalExistingEmpty.querySelector('h2').textContent = 'No trips yet';
+        modalExistingEmpty.querySelector('p').textContent = 'Create your first trip to get started.';
+    }
+
+    if (!trips || trips.length === 0) {
+        modalExistingEmpty.classList.remove('hidden');
+        modalExistingTrips.innerHTML = '';
+        return;
+    }
+
+    modalExistingEmpty.classList.add('hidden');
+    modalExistingTrips.innerHTML = trips
+        .map(trip => `
+            <div class="existing-trip-card">
+                <div>
+                    <h3>${escapeHtml(trip.name)}</h3>
+                    ${trip.description ? `<p>${escapeHtml(trip.description)}</p>` : ''}
+                    <div class="existing-trip-meta">
+                        Status: ${capitalize(trip.status)}
+                        ${trip.target_start_date ? ` • Start: ${formatDate(trip.target_start_date)}` : ''}
+                    </div>
+                </div>
+                <button class="btn btn-secondary existing-trip-open" data-trip-id="${trip.id}">
+                    Open
+                </button>
+            </div>
+        `)
+        .join('');
+
+    modalExistingTrips.querySelectorAll('.existing-trip-open').forEach(button => {
+        button.addEventListener('click', () => {
+            const tripId = button.dataset.tripId;
+            if (tripId) {
+                viewTrip(tripId);
+            }
         });
-        block.append(heading, ul);
-        listContainer.appendChild(block);
-      }
+    });
+}
 
-      if (tips.length) {
-        const block = document.createElement('div');
-        const heading = document.createElement('strong');
-        heading.textContent = 'Travel Tips';
-        const ul = document.createElement('ul');
-        tips.forEach((entry) => {
-          const li = document.createElement('li');
-          li.textContent = entry;
-          ul.appendChild(li);
-        });
-        block.append(heading, ul);
-        listContainer.appendChild(block);
-      }
+// Validate organizer phone number
+function validateOrganizerPhone(e) {
+    const phoneInput = e.target;
+    const phoneError = document.getElementById('organizerPhoneError');
+    const originalValue = phoneInput.value;
+    const phoneValue = originalValue.replace(/\D/g, ''); // Remove non-digits
 
-      item.appendChild(listContainer);
+    // Check if there are non-digit characters
+    if (originalValue.length > 0 && originalValue !== phoneValue) {
+        phoneError.textContent = 'Only digits (0-9) are allowed in phone number';
+        phoneError.style.display = 'block';
+        phoneInput.setCustomValidity('Only digits are allowed');
+        return;
     }
 
-    const footer = document.createElement('div');
-    footer.className = 'recommendation-footer';
-    const modelSpan = document.createElement('span');
-    modelSpan.textContent = rec.model_name;
-    const variantSpan = document.createElement('span');
-    variantSpan.textContent = `Variant: ${rec.prompt_variant}`;
-    footer.append(modelSpan, variantSpan);
-    item.appendChild(footer);
-
-    els.recommendationList.appendChild(item);
-
-    const rankRow = document.createElement('div');
-    rankRow.className = 'ranking-item';
-    const label = document.createElement('label');
-    const select = document.createElement('select');
-    select.name = `rank_${idx + 1}`;
-    select.dataset.recId = rec.id;
-    select.required = true;
-    state.recommendations.forEach((candidate) => {
-      const option = document.createElement('option');
-      option.value = candidate.id;
-      option.textContent = candidate.title;
-      if (candidate.id === rec.id) option.selected = true;
-      select.appendChild(option);
-    });
-    label.append(`Rank ${idx + 1}`, select);
-    rankRow.appendChild(label);
-    els.rankingContainer.appendChild(rankRow);
-  });
-  els.status.recs.textContent = String(state.recommendations.length);
-};
-
-const setTripStatus = (trip) => {
-  state.tripId = trip.id;
-  els.status.trip.textContent = `${trip.name} (${trip.id.slice(0, 8)})`;
-};
-
-const setSurveyStatus = (survey) => {
-  state.surveyId = survey.id;
-  els.status.survey.textContent = `${survey.name} (${survey.survey_type})`;
-  toast('Survey ready. You can record responses now.');
-};
-
-const renderResults = (result) => {
-  if (!result || !result.vote_round) {
-    els.resultsOutput.textContent = 'No results yet.';
-    els.status.result.textContent = 'Pending';
-    return;
-  }
-
-  const winnerId = result.vote_round.results?.winner;
-  const winner = state.recommendations.find((rec) => rec.id === winnerId);
-  const rounds = Array.isArray(result.vote_round.results?.rounds)
-    ? result.vote_round.results.rounds
-    : [];
-
-  els.resultsOutput.innerHTML = '';
-  const title = document.createElement('h3');
-  title.textContent = winner ? winner.title : winnerId || 'Winner not determined';
-  const summary = document.createElement('p');
-  summary.className = 'winner-summary';
-  summary.textContent = winner
-    ? winner.description
-    : winnerId
-      ? 'Winner selected earlier in the flow. Generate fresh recommendations to view more detail.'
-      : 'No votes tallied yet.';
-
-  const metrics = document.createElement('div');
-  metrics.className = 'results-metrics';
-  [`Status: ${result.vote_round.status}`, `Method: ${result.vote_round.method}`, `Rounds: ${rounds.length}`].forEach(
-    (text) => {
-      const span = document.createElement('span');
-      span.textContent = text;
-      metrics.appendChild(span);
+    if (phoneValue.length > 10) {
+        const extraDigits = phoneValue.length - 10;
+        phoneError.textContent = `Only 10 digits should be there. You have entered ${extraDigits} extra digit${extraDigits > 1 ? 's' : ''}`;
+        phoneError.style.display = 'block';
+        phoneInput.setCustomValidity('Phone number must be exactly 10 digits');
+    } else {
+        phoneError.style.display = 'none';
+        phoneInput.setCustomValidity('');
     }
-  );
+}
 
-  const roundsContainer = document.createElement('div');
-  roundsContainer.className = 'results-rounds';
-  if (rounds.length) {
-    rounds.forEach((tally, index) => {
-      const block = document.createElement('div');
-      const heading = document.createElement('h4');
-      heading.textContent = `Round ${index + 1}`;
-      const ul = document.createElement('ul');
-      const entries = Object.entries(tally || {});
-      if (!entries.length) {
-        const li = document.createElement('li');
-        li.textContent = 'No votes cast.';
-        ul.appendChild(li);
-      } else {
-        entries.forEach(([id, votes]) => {
-          const li = document.createElement('li');
-          const rec = state.recommendations.find((candidate) => candidate.id === id);
-          const label = rec ? rec.title : id;
-          li.textContent = `${label} — ${votes} vote${votes === 1 ? '' : 's'}`;
-          ul.appendChild(li);
+// Handle form submission
+async function handleFormSubmit(e) {
+    e.preventDefault();
+
+    // Clear any previous error messages
+    const existingError = document.querySelector('.error-message');
+    if (existingError) {
+        existingError.remove();
+    }
+
+    // Validate phone number before submission
+    const organizerPhoneInput = document.getElementById('organizerPhone');
+    const phoneValue = organizerPhoneInput.value.replace(/\D/g, '');
+    if (phoneValue.length !== 10) {
+        organizerPhoneInput.focus();
+        return;
+    }
+
+    // Get form data
+    const formData = new FormData(createTripForm);
+    const projectName = formData.get('name');
+    const organizerName = formData.get('organizer_name');
+    const organizerPhone = phoneValue; // Use validated phone value
+    const organizerEmail = formData.get('organizer_email');
+    const startDate = formData.get('target_start_date');
+    const durationDays = parseInt(formData.get('duration_days'));
+    const organizerLocation = formData.get('organizer_location') || '';
+    const organizerBudget = formData.get('organizer_budget') || '';
+    const organizerPreferences = formData.getAll('organizer_preferences') || [];
+
+    // Calculate end date
+    const startDateTime = new Date(startDate);
+    const endDateTime = new Date(startDateTime);
+    endDateTime.setDate(endDateTime.getDate() + durationDays);
+
+    // Prepare trip data
+    const tripData = {
+        name: projectName,
+        description: `${durationDays}-day trip starting ${formatDate(startDate)}`,
+        organizer_name: organizerName,
+        organizer_phone: organizerPhone,
+        organizer_email: organizerEmail || null,
+        target_start_date: startDateTime.toISOString(),
+        target_end_date: endDateTime.toISOString(),
+        tags: []
+    };
+
+    try {
+        // Disable submit button
+        const submitBtn = createTripForm.querySelector('button[type="submit"]');
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Creating...';
+
+        // Create trip via API
+        const response = await fetch(`${API_BASE_URL}/trips`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(tripData)
         });
-      }
-      block.append(heading, ul);
-      roundsContainer.appendChild(block);
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Failed to create trip');
+        }
+
+        const newTrip = await response.json();
+
+        await saveOrganizerPreferences(newTrip.id, {
+            location: organizerLocation,
+            budget: organizerBudget,
+            preferences: organizerPreferences,
+        });
+
+        // Redirect to trip detail page
+        window.location.href = `/ui/trip.html?id=${newTrip.id}`;
+
+    } catch (error) {
+        console.error('Error creating trip:', error);
+
+        // Show error message
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'error-message';
+        errorDiv.textContent = error.message || 'Failed to create trip. Please try again.';
+        createTripForm.insertBefore(errorDiv, createTripForm.firstChild);
+
+        // Re-enable submit button
+        const submitBtn = createTripForm.querySelector('button[type="submit"]');
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Create Project';
+    }
+}
+
+// Handle cancel button
+function handleCancel() {
+    if (cachedTrips.length === 0) {
+        createTripForm.reset();
+        durationInput.value = 3;
+    } else {
+        hideModal();
+    }
+}
+
+// Duration controls with haptic-like feedback
+function updateDuration(change) {
+    const currentValue = parseInt(durationInput.value);
+    const newValue = Math.max(1, Math.min(60, currentValue + change));
+
+    // Add subtle animation
+    durationInput.style.transform = 'scale(1.05)';
+    setTimeout(() => {
+        durationInput.style.transform = 'scale(1)';
+    }, 100);
+
+    durationInput.value = newValue;
+}
+
+function handleDurationInput(e) {
+    let value = parseInt(e.target.value);
+    if (isNaN(value) || value < 1) {
+        value = 1;
+    } else if (value > 60) {
+        value = 60;
+    }
+    e.target.value = value;
+}
+
+// Modal controls with smooth transitions
+function showModal(mode = 'create') {
+    currentModalMode = mode;
+    modalOverlay.classList.add('active');
+    mainContent.classList.add('hidden');
+    switchModalMode(currentModalMode);
+    if (currentModalMode === 'create' && projectNameInput) {
+        setTimeout(() => projectNameInput.focus(), 300);
+    }
+}
+
+function hideModal() {
+    // Fade out animation
+    modalOverlay.style.opacity = '0';
+    setTimeout(() => {
+        modalOverlay.classList.remove('active');
+        mainContent.classList.remove('hidden');
+        modalOverlay.style.opacity = '1';
+    }, 200);
+}
+
+function switchModalMode(mode) {
+    currentModalMode = mode;
+
+    if (modeCreateBtn && modeExistingBtn) {
+        modeCreateBtn.classList.toggle('active', mode === 'create');
+        modeExistingBtn.classList.toggle('active', mode === 'existing');
+    }
+
+    modalCreateSection?.classList.toggle('hidden', mode !== 'create');
+    modalExistingSection?.classList.toggle('hidden', mode !== 'existing');
+
+    if (mode === 'existing') {
+        renderExistingTrips(cachedTrips);
+    }
+}
+
+// View trip details
+function viewTrip(tripId) {
+    window.location.href = `/ui/trip.html?id=${tripId}`;
+}
+
+// Utility Functions
+function formatDate(dateString) {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
     });
-  } else {
-    const block = document.createElement('div');
-    const heading = document.createElement('h4');
-    heading.textContent = 'No vote tallies yet.';
-    block.appendChild(heading);
-    roundsContainer.appendChild(block);
-  }
+}
 
-  els.resultsOutput.append(title, summary, metrics, roundsContainer);
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
 
-  els.status.result.textContent = winner ? winner.title : winnerId ?? 'Pending';
-};
+function capitalize(str) {
+    if (!str || typeof str !== 'string') {
+        return '';
+    }
+    return str.charAt(0).toUpperCase() + str.slice(1);
+}
 
-els.tripForm.addEventListener('submit', async (event) => {
-  event.preventDefault();
-  const formEl = event.currentTarget;
-  if (!(formEl instanceof HTMLFormElement)) {
-    return;
-  }
-  const form = new FormData(formEl);
-  const payload = Object.fromEntries(form.entries());
-  payload.tags = payload.tags ? payload.tags.split(',').map((t) => t.trim()).filter(Boolean) : [];
+// Set minimum date to today
+const today = new Date().toISOString().split('T')[0];
+document.getElementById('travelDate').setAttribute('min', today);
 
-  try {
-    const trip = await api('/trips', { method: 'POST', body: JSON.stringify(payload) });
-    setTripStatus(trip);
-    toast('Trip created. Continue adding participants.');
-    formEl.reset();
-  } catch (error) {
-    toast(error.message, 'error');
-  }
-});
-
-els.participantForm.addEventListener('submit', async (event) => {
-  event.preventDefault();
-  const formEl = event.currentTarget;
-  if (!(formEl instanceof HTMLFormElement)) {
-    return;
-  }
-  ensureTrip();
-  const form = new FormData(formEl);
-  const payload = Object.fromEntries(form.entries());
-
-  try {
-    const participant = await api(`/trips/${state.tripId}/participants`, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
-    state.participants.push(participant);
-    updateParticipantOptions();
-    toast(`Added ${participant.name}.`);
-    formEl.reset();
-  } catch (error) {
-    toast(error.message, 'error');
-  }
-});
-
-els.surveyForm.addEventListener('submit', async (event) => {
-  event.preventDefault();
-  const formEl = event.currentTarget;
-  if (!(formEl instanceof HTMLFormElement)) {
-    return;
-  }
-  ensureTrip();
-  const form = new FormData(formEl);
-  const payload = {
-    name: form.get('name'),
-    survey_type: 'preferences',
-    questions: [
-      { id: 'q1', text: form.get('question1'), type: 'text' },
-      { id: 'q2', text: form.get('question2'), type: 'text' },
-    ],
-  };
-
-  try {
-    const survey = await api(`/trips/${state.tripId}/surveys`, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
-    setSurveyStatus(survey);
-  } catch (error) {
-    toast(error.message, 'error');
-  }
-});
-
-els.responseForm.addEventListener('submit', async (event) => {
-  event.preventDefault();
-  const formEl = event.currentTarget;
-  if (!(formEl instanceof HTMLFormElement)) {
-    return;
-  }
-  ensureTrip();
-  if (!state.surveyId) {
-    toast('Create a survey first.', 'error');
-    return;
-  }
-
-  const form = new FormData(formEl);
-  const payload = {
-    participant_id: form.get('participant_id'),
-    answers: {
-      vibe: form.get('vibe'),
-      no_go: form.get('no_go'),
-    },
-  };
-
-  try {
-    await api(`/trips/${state.tripId}/surveys/${state.surveyId}/responses`, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
-    toast('Response recorded.');
-    formEl.reset();
-    updateParticipantOptions();
-  } catch (error) {
-    toast(error.message, 'error');
-  }
-});
-
-els.recommendationForm.addEventListener('submit', async (event) => {
-  event.preventDefault();
-  const formEl = event.currentTarget;
-  if (!(formEl instanceof HTMLFormElement)) {
-    return;
-  }
-  ensureTrip();
-  const form = new FormData(formEl);
-  const payload = {
-    prompt_variant: form.get('prompt_variant') || 'baseline',
-    candidate_count: Number(form.get('candidate_count') || 3),
-  };
-
-  try {
-    const recommendations = await api(`/trips/${state.tripId}/recommendations`, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
-    state.recommendations = recommendations;
-    updateRecommendationsUI();
-    toast('Recommendations ready. Submit a vote!');
-  } catch (error) {
-    toast(error.message, 'error');
-  }
-});
-
-els.voteForm.addEventListener('submit', async (event) => {
-  event.preventDefault();
-  const formEl = event.currentTarget;
-  if (!(formEl instanceof HTMLFormElement)) {
-    return;
-  }
-  ensureTrip();
-  if (!state.recommendations.length) {
-    toast('Generate recommendations first.', 'error');
-    return;
-  }
-
-  const form = new FormData(formEl);
-  const participantId = form.get('participant_id');
-  const rankings = Array.from(els.rankingContainer.querySelectorAll('select')).map((select, idx) => ({
-    recommendation_id: select.value,
-    rank: idx + 1,
-  }));
-
-  try {
-    await api(`/trips/${state.tripId}/votes`, {
-      method: 'POST',
-      body: JSON.stringify({ participant_id: participantId, rankings }),
-    });
-    toast('Vote submitted. Check results!');
-    formEl.reset();
-  } catch (error) {
-    toast(error.message, 'error');
-  }
-});
-
-els.refreshResults.addEventListener('click', async () => {
-  try {
-    ensureTrip();
-    const result = await api(`/trips/${state.tripId}/results`);
-    renderResults(result);
-  } catch (error) {
-    toast(error.message, 'error');
-  }
-});
-
-// Warm up health check
-api('/healthz')
-  .then(() => toast('Backend is live.', 'info'))
-  .catch(() => toast('Backend is unreachable. Start the API first.', 'error'));
-
-updateParticipantOptions();
-updateRecommendationsUI();
-renderResults(null);
-
+async function saveOrganizerPreferences(tripId, answers) {
+    try {
+        const participantsResponse = await fetch(`${API_BASE_URL}/trips/${tripId}/participants`);
+        if (!participantsResponse.ok) {
+            return;
+        }
+        const participants = await participantsResponse.json();
+        const organizer = participants.find((p) => p.role === 'organizer');
+        if (!organizer) {
+            return;
+        }
+        await fetch(`${API_BASE_URL}/trips/${tripId}/participants/${organizer.id}/survey-response`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ answers }),
+        });
+    } catch (err) {
+        console.error('Failed to save organizer preferences', err);
+    }
+}
