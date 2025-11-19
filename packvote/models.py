@@ -98,7 +98,7 @@ class Survey(TimestampMixin, SQLModel, table=True):
     trip_id: UUID = Field(foreign_key="trips.id", index=True)
     name: str = Field(max_length=200)
     survey_type: SurveyType = Field(default=SurveyType.custom)
-    questions: List[Dict[str, str]] = Field(
+    questions: List[Dict[str, Any]] = Field(
         default_factory=list, sa_column=Column(JSON)
     )
     is_active: bool = Field(default=True)
@@ -151,6 +151,7 @@ class VoteRound(TimestampMixin, SQLModel, table=True):
     trip_id: UUID = Field(foreign_key="trips.id", index=True)
     status: VoteStatus = Field(default=VoteStatus.open)
     method: str = Field(default="instant_runoff", max_length=50)
+    candidates: Optional[List[str]] = Field(default=None, sa_column=Column(JSON))
     results: Dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
 
     trip: "Trip" = Relationship(back_populates="vote_rounds")
@@ -175,7 +176,9 @@ class VoteItem(TimestampMixin, SQLModel, table=True):
 
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     vote_id: UUID = Field(foreign_key="votes.id", index=True)
-    recommendation_id: UUID = Field(foreign_key="destination_recommendations.id", index=True)
+    recommendation_id: UUID = Field(
+        foreign_key="destination_recommendations.id", index=True
+    )
     rank: int = Field(ge=1)
 
     vote: "Vote" = Relationship(back_populates="items")

@@ -25,7 +25,6 @@ from ...models import (
 from ...schemas import TripCreate, TripRead, TripUpdate
 from ..dependencies import get_db_session
 
-
 router = APIRouter()
 
 
@@ -57,12 +56,32 @@ async def create_trip(
         name="Travel Preferences",
         survey_type=SurveyType.preferences,
         questions=[
-            {"id": "location", "text": "What is your current location?", "type": "text"},
-            {"id": "budget", "text": "What is your budget range?", "type": "choice", "options": ["low", "medium", "high"]},
-            {"id": "preferences", "text": "Select your travel preferences", "type": "multi_choice", "options": [
-                "beaches", "city_sightseeing", "outdoor_adventures", "festivals_events",
-                "food_exploration", "nightlife", "shopping", "spa_wellness"
-            ]},
+            {
+                "id": "location",
+                "text": "What is your current location?",
+                "type": "text",
+            },
+            {
+                "id": "budget",
+                "text": "What is your budget range?",
+                "type": "choice",
+                "options": ["low", "medium", "high"],
+            },
+            {
+                "id": "preferences",
+                "text": "Select your travel preferences",
+                "type": "multi_choice",
+                "options": [
+                    "beaches",
+                    "city_sightseeing",
+                    "outdoor_adventures",
+                    "festivals_events",
+                    "food_exploration",
+                    "nightlife",
+                    "shopping",
+                    "spa_wellness",
+                ],
+            },
         ],
         is_active=True,
     )
@@ -71,6 +90,7 @@ async def create_trip(
 
     # Create empty survey response for organizer
     from ...models import SurveyResponse
+
     organizer_survey_response = SurveyResponse(
         survey_id=preferences_survey.id,
         participant_id=organizer_participant.id,
@@ -99,7 +119,9 @@ async def list_trips(session: AsyncSession = Depends(get_db_session)) -> List[Tr
 
 
 @router.get("/{trip_id}", response_model=TripRead)
-async def get_trip(trip_id: UUID, session: AsyncSession = Depends(get_db_session)) -> Trip:
+async def get_trip(
+    trip_id: UUID, session: AsyncSession = Depends(get_db_session)
+) -> Trip:
     trip = await session.get(Trip, trip_id)
     if not trip:
         raise HTTPException(status_code=404, detail="Trip not found")
@@ -177,7 +199,9 @@ async def delete_trip(
                 AvailabilityWindow.participant_id.in_(participant_ids)
             )
         )
-        await session.exec(delete(Participant).where(Participant.id.in_(participant_ids)))
+        await session.exec(
+            delete(Participant).where(Participant.id.in_(participant_ids))
+        )
 
     await session.exec(
         delete(DestinationRecommendation).where(

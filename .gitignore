@@ -14,3 +14,9 @@ wheels/
 .env
 .cursor
 .claude
+
+# Artifacts
+*.db
+
+# Notebooks
+*.ipynb

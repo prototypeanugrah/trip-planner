@@ -9,7 +9,9 @@ from uuid import UUID
 from ..models import DestinationRecommendation, Vote
 
 
-def instant_runoff_round(recommendations: List[UUID], ballots: List[List[UUID]]) -> tuple[UUID | None, dict[UUID, int]]:
+def instant_runoff_round(
+    recommendations: List[UUID], ballots: List[List[UUID]]
+) -> tuple[UUID | None, dict[UUID, int], List[UUID]]:
     tally = Counter()
     for ballot in ballots:
         for choice in ballot:
@@ -17,37 +19,48 @@ def instant_runoff_round(recommendations: List[UUID], ballots: List[List[UUID]])
                 tally[choice] += 1
                 break
     if not tally:
-        return None, {}
+        return None, {}, []
     total_votes = sum(tally.values())
     for candidate, count in tally.items():
         if count > total_votes / 2:
-            return candidate, dict(tally)
+            return candidate, dict(tally), []
     lowest = min(tally.values())
     eliminated = [cand for cand, count in tally.items() if count == lowest]
     for elim in eliminated:
         recommendations.remove(elim)
-    return None, dict(tally)
+    return None, dict(tally), eliminated
 
 
-def compute_instant_runoff(recommendations: Iterable[DestinationRecommendation], votes: Iterable[Vote]) -> dict:
+def compute_instant_runoff(
+    recommendations: Iterable[DestinationRecommendation], votes: Iterable[Vote]
+) -> dict:
     recommendation_ids = [rec.id for rec in recommendations]
     ballots: List[List[UUID]] = []
     for vote in votes:
         ballot = sorted(
             (item.recommendation_id for item in vote.items),
-            key=lambda rec_id: next(item.rank for item in vote.items if item.recommendation_id == rec_id),
+            key=lambda rec_id: next(
+                item.rank for item in vote.items if item.recommendation_id == rec_id
+            ),
         )
         ballots.append(ballot)
 
     active_candidates = recommendation_ids.copy()
     rounds: list[dict[UUID, int]] = []
     winner: UUID | None = None
+    tied: List[UUID] = []
 
     while active_candidates and winner is None:
-        winner, tally = instant_runoff_round(active_candidates, ballots)
+        winner, tally, eliminated = instant_runoff_round(active_candidates, ballots)
         rounds.append(tally)
+        if not active_candidates and not winner:
+            tied = eliminated
 
     return {
         "winner": str(winner) if winner else None,
-        "rounds": [{str(candidate): votes for candidate, votes in round_tally.items()} for round_tally in rounds],
+        "rounds": [
+            {str(candidate): votes for candidate, votes in round_tally.items()}
+            for round_tally in rounds
+        ],
+        "tied": [str(t) for t in tied],
     }

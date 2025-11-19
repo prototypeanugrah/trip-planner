@@ -19,7 +19,9 @@ from .enums import (
 
 
 class APIModel(BaseModel):
-    model_config = ConfigDict(populate_by_name=True, from_attributes=True, json_schema_extra={"example": None})
+    model_config = ConfigDict(
+        populate_by_name=True, from_attributes=True, json_schema_extra={"example": None}
+    )
 
 
 class TripBase(APIModel):
@@ -72,12 +74,21 @@ class ParticipantCreate(ParticipantBase):
     pass
 
 
+class ParticipantUpdate(APIModel):
+    name: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    role: Optional[ParticipantRole] = None
+    timezone: Optional[str] = None
+
+
 class ParticipantRead(ParticipantBase):
     id: UUID
     trip_id: UUID
     is_active: bool
     created_at: datetime
     updated_at: datetime
+    survey_response: Optional[Dict[str, Any]] = None
 
 
 class AvailabilityWindowCreate(APIModel):
@@ -131,6 +142,7 @@ class SurveyResponseRead(SurveyResponseCreate):
 class RecommendationCreate(APIModel):
     prompt_variant: str = Field(default="baseline")
     candidate_count: int = Field(default=5, ge=1, le=10)
+    custom_preference: Optional[str] = None
 
 
 class RecommendationRead(APIModel):
@@ -174,7 +186,9 @@ class VoteRoundRead(APIModel):
     trip_id: UUID
     status: VoteStatus
     method: str
+    candidates: Optional[List[str]] = None
     results: Dict[str, Any]
+    votes: List[VoteRead] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
 
@@ -200,5 +214,3 @@ class SMSWebhookPayload(APIModel):
     body: str = Field(alias="Body")
     message_sid: str = Field(alias="MessageSid")
     account_sid: str = Field(alias="AccountSid")
-
-
