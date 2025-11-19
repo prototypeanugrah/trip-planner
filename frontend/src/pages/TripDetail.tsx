@@ -133,9 +133,15 @@ function TabButton({ active, onClick, icon, label }: { active: boolean, onClick:
 }
 
 function ParticipantsView({ tripId, onAddClick }: { tripId: string, onAddClick: () => void }) {
+    const { user } = useUser();
+    const userEmail = user?.primaryEmailAddress?.emailAddress;
     const queryClient = useQueryClient();
     const [editingParticipant, setEditingParticipant] = useState<Participant | null>(null);
     const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+    
+    const [transferModalOpen, setTransferModalOpen] = useState(false);
+    const [leavingOrganizerId, setLeavingOrganizerId] = useState<string | null>(null);
+    const [newOrganizerId, setNewOrganizerId] = useState<string>("");
 
     const { data: participants, isLoading } = useQuery({
         queryKey: ['participants', tripId],
@@ -143,9 +149,16 @@ function ParticipantsView({ tripId, onAddClick }: { tripId: string, onAddClick: 
     });
 
     const deleteMutation = useMutation({
-        mutationFn: (participantId: string) => TripService.deleteParticipant(tripId, participantId),
+        mutationFn: ({ participantId, userEmail, transferToId }: { participantId: string, userEmail?: string, transferToId?: string }) => 
+            TripService.deleteParticipant(tripId, participantId, userEmail, transferToId),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['participants', tripId] });
+            setTransferModalOpen(false);
+            setLeavingOrganizerId(null);
+            setNewOrganizerId("");
+        },
+        onError: (error: any) => {
+             alert(error.response?.data?.detail || "Failed to remove participant");
         }
     });
 
@@ -154,11 +167,55 @@ function ParticipantsView({ tripId, onAddClick }: { tripId: string, onAddClick: 
         setOpenMenuId(null);
     };
 
-    const handleDeleteClick = (id: string) => {
+    const handleDeleteClick = (p: Participant) => {
+        const isSelf = userEmail && p.email === userEmail;
+        // Note: This checks if the CURRENT user is an organizer. 
+        // p.role is the role of the participant being deleted.
+        // We need to find the current user's participant record to check their role.
+        const currentUserParticipant = participants?.find(part => part.email === userEmail);
+        const isCurrentUserOrganizer = currentUserParticipant?.role === 'organizer';
+
+        // Check 1: Only person A or organizer can remove A
+        if (userEmail && !isSelf && !isCurrentUserOrganizer) {
+            alert("You can only remove yourself or, if you are the organizer, other participants.");
+            setOpenMenuId(null);
+            return;
+        }
+
+        // Check 2: Organizer leaving logic
+        if (isSelf && p.role === 'organizer') {
+            const otherParticipants = participants?.filter(part => part.id !== p.id) || [];
+            if (otherParticipants.length === 0) {
+                 if (confirm("You are the only participant. Do you want to delete the trip instead?")) {
+                     TripService.delete(tripId).then(() => {
+                         window.location.href = "/";
+                     }).catch((err) => {
+                         alert("Failed to delete trip: " + (err.response?.data?.detail || err.message));
+                     });
+                 }
+                 setOpenMenuId(null);
+                 return;
+            } else {
+                setLeavingOrganizerId(p.id);
+                setTransferModalOpen(true);
+                setOpenMenuId(null);
+                return;
+            }
+        }
+
         if (confirm('Are you sure you want to remove this participant?')) {
-             deleteMutation.mutate(id);
+             deleteMutation.mutate({ participantId: p.id, userEmail: userEmail || undefined });
         }
         setOpenMenuId(null);
+    };
+
+    const handleTransferAndLeave = () => {
+        if (!leavingOrganizerId || !newOrganizerId) return;
+        deleteMutation.mutate({ 
+            participantId: leavingOrganizerId, 
+            userEmail: userEmail || undefined,
+            transferToId: newOrganizerId 
+        });
     };
 
     if (isLoading) return <div>Loading participants...</div>;
@@ -244,7 +301,7 @@ function ParticipantsView({ tripId, onAddClick }: { tripId: string, onAddClick: 
                                                         <Edit2 className="w-3.5 h-3.5" /> Edit
                                                     </button>
                                                     <button 
-                                                        onClick={(e) => { e.stopPropagation(); handleDeleteClick(p.id); }}
+                                                        onClick={(e) => { e.stopPropagation(); handleDeleteClick(p); }}
                                                         className="w-full px-3 py-2 text-sm text-left text-red-500 hover:bg-red-500/10 flex items-center gap-2"
                                                     >
                                                         <Trash2 className="w-3.5 h-3.5" /> Delete
@@ -273,6 +330,41 @@ function ParticipantsView({ tripId, onAddClick }: { tripId: string, onAddClick: 
                 tripId={tripId}
                 initialData={editingParticipant}
             />
+
+            <Modal
+                isOpen={transferModalOpen}
+                onClose={() => setTransferModalOpen(false)}
+                title="Assign New Organizer"
+                description="You must assign a new organizer before leaving the trip."
+            >
+                <div className="space-y-4">
+                    <div className="space-y-2">
+                         <label className="text-sm font-medium">Select New Organizer</label>
+                         <select 
+                            className="w-full h-10 rounded-md border border-border bg-bg-elevated px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent-blue"
+                            value={newOrganizerId} 
+                            onChange={e => setNewOrganizerId(e.target.value)}
+                        >
+                            <option value="" disabled>Select person...</option>
+                            {participants?.filter(p => p.id !== leavingOrganizerId).map(p => (
+                                <option key={p.id} value={p.id}>{p.name}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="flex justify-end gap-3 pt-4">
+                        <Button variant="secondary" onClick={() => setTransferModalOpen(false)}>
+                            Cancel
+                        </Button>
+                        <Button 
+                            onClick={handleTransferAndLeave} 
+                            disabled={!newOrganizerId} 
+                            isLoading={deleteMutation.isPending}
+                        >
+                            Transfer Role & Leave
+                        </Button>
+                    </div>
+                </div>
+            </Modal>
         </>
     )
 }

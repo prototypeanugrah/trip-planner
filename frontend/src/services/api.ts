@@ -119,12 +119,22 @@ export const TripService = {
     const response = await api.post<Participant>(`/trips/${tripId}/participants`, data);
     return response.data;
   },
+  inviteParticipant: async (tripId: string, data: { email?: string; phone?: string }) => {
+    const response = await api.post<{ message: string }>(`/trips/${tripId}/invite`, data);
+    return response.data;
+  },
+  joinTrip: async (tripId: string, data: { name: string; phone: string; email?: string; preferences: string[]; budget: string; location?: string }) => {
+    const response = await api.post<Participant>(`/trips/${tripId}/join`, data);
+    return response.data;
+  },
   updateParticipant: async (tripId: string, participantId: string, data: Partial<CreateParticipantRequest>) => {
     const response = await api.patch<Participant>(`/trips/${tripId}/participants/${participantId}`, data);
     return response.data;
   },
-  deleteParticipant: async (tripId: string, participantId: string) => {
-    await api.delete(`/trips/${tripId}/participants/${participantId}`);
+  deleteParticipant: async (tripId: string, participantId: string, userEmail?: string, transferToId?: string) => {
+    const headers = userEmail ? { "x-user-email": userEmail } : {};
+    const params = transferToId ? { transfer_organizer_to: transferToId } : {};
+    await api.delete(`/trips/${tripId}/participants/${participantId}`, { headers, params });
   },
   saveSurveyResponse: async (tripId: string, participantId: string, answers: Record<string, unknown>) => {
      const response = await api.patch(`/trips/${tripId}/participants/${participantId}/survey-response`, { answers });

@@ -28,6 +28,8 @@ dependencies = [
     "langgraph>=1.0.3",
     "ipykernel>=7.1.0",
     "pandas>=2.3.3",
+    "fastapi-mail>=1.5.8",
+    "alembic>=1.17.2",
 ]
 
 [project.optional-dependencies]

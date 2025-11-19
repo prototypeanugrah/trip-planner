@@ -3,8 +3,12 @@
 from functools import lru_cache
 from typing import List, Optional
 
+from dotenv import load_dotenv
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Load env vars immediately
+load_dotenv()
 
 
 class Settings(BaseSettings):
@@ -22,20 +26,34 @@ class Settings(BaseSettings):
         default="development", pattern=r"^(development|staging|production)$"
     )
     database_url: str = Field(default="sqlite+aiosqlite:///./packvote.db")
+    # Update to look for both prefixed and non-prefixed or just rely on env_prefix if correctly named in .env
     twilio_account_sid: Optional[str] = None
     twilio_auth_token: Optional[str] = None
     twilio_messaging_service_sid: Optional[str] = None
+    twilio_from_number: Optional[str] = None
+
     openai_api_key: Optional[str] = Field(default=None, alias="OPENAI_API_KEY")
     anthropic_api_key: Optional[str] = None
     deepseek_api_key: Optional[str] = None
     allowed_origins: List[str] = Field(default_factory=lambda: ["*"])
+    frontend_base_url: str = "http://localhost:5173/ui"
     redis_url: str = "redis://localhost:6379/0"
     prompt_store_path: str = "./prompts"
     metrics_namespace: str = "packvote"
+
+    # Email Settings
+    mail_username: Optional[str] = None
+    mail_password: Optional[str] = None
+    mail_from: str = "noreply@packvote.com"
+    mail_port: int = 587
+    mail_server: str = "smtp.gmail.com"
+    mail_starttls: bool = True
+    mail_ssl_tls: bool = False
+    use_credentials: bool = True
+    validate_certs: bool = True
 
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
     """Return cached settings instance."""
-
     return Settings()

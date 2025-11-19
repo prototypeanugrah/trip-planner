@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from .enums import (
     AuditEventType,
@@ -24,11 +24,22 @@ class APIModel(BaseModel):
     )
 
 
+def normalize_phone(v: Optional[str]) -> Optional[str]:
+    if v is None:
+        return None
+    v = v.strip()
+    if not v:
+        return None
+    if not v.startswith("+"):
+        return f"+1{v}"
+    return v
+
+
 class TripBase(APIModel):
     name: str
     description: Optional[str] = None
     organizer_name: str
-    organizer_phone: str
+    organizer_phone: Optional[str] = None
     organizer_email: Optional[str] = None
     budget_min: Optional[int] = None
     budget_max: Optional[int] = None
@@ -36,6 +47,11 @@ class TripBase(APIModel):
     target_end_date: Optional[datetime] = None
     timezone: Optional[str] = None
     tags: List[str] = Field(default_factory=list)
+
+    @field_validator("organizer_phone")
+    @classmethod
+    def validate_phone(cls, v: Optional[str]) -> Optional[str]:
+        return normalize_phone(v)
 
 
 class TripCreate(TripBase):
@@ -64,14 +80,43 @@ class TripRead(TripBase):
 
 class ParticipantBase(APIModel):
     name: str
-    phone: str
+    phone: Optional[str] = None
     email: Optional[str] = None
     role: ParticipantRole = ParticipantRole.traveler
     timezone: Optional[str] = None
 
+    @field_validator("phone")
+    @classmethod
+    def validate_phone(cls, v: Optional[str]) -> Optional[str]:
+        return normalize_phone(v)
+
 
 class ParticipantCreate(ParticipantBase):
     pass
+
+
+class ParticipantInvite(APIModel):
+    email: Optional[str] = None
+    phone: Optional[str] = None
+
+    @field_validator("phone")
+    @classmethod
+    def validate_phone(cls, v: Optional[str]) -> Optional[str]:
+        return normalize_phone(v)
+
+
+class ParticipantJoin(APIModel):
+    name: str
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    preferences: List[str] = Field(default_factory=list)
+    budget: str = "medium"
+    location: Optional[str] = None
+
+    @field_validator("phone")
+    @classmethod
+    def validate_phone(cls, v: Optional[str]) -> Optional[str]:
+        return normalize_phone(v)
 
 
 class ParticipantUpdate(APIModel):
@@ -80,6 +125,11 @@ class ParticipantUpdate(APIModel):
     email: Optional[str] = None
     role: Optional[ParticipantRole] = None
     timezone: Optional[str] = None
+
+    @field_validator("phone")
+    @classmethod
+    def validate_phone(cls, v: Optional[str]) -> Optional[str]:
+        return normalize_phone(v)
 
 
 class ParticipantRead(ParticipantBase):

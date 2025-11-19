@@ -35,7 +35,7 @@ const createTripSchema = z.object({
   
   // Step 2
   organizer_name: z.string().min(2, "Name is required"),
-  organizer_phone: z.string().regex(/^\d{10}$/, "Phone must be 10 digits"),
+  organizer_phone: z.string().regex(/^\d{10}$/, "Phone must be 10 digits").optional().or(z.literal('')),
   organizer_email: z.string().email().optional().or(z.literal('')),
   organizer_location: z.string().optional(),
 

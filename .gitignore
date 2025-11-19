@@ -17,6 +17,8 @@ wheels/
 
 # Artifacts
 *.db
+alembic/
+alembic.ini
 
 # Notebooks
 *.ipynb

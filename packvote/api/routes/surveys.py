@@ -215,6 +215,9 @@ async def send_survey(
 
     def _send_messages() -> None:  # pragma: no cover - background side-effect
         for participant in participants:
+            if not participant.phone:
+                continue
+
             question_prompts = ", ".join(q.get("text", "") for q in survey.questions)
             message_body = (
                 f"Pack Vote survey: {survey.name}\nPlease reply: {question_prompts}"
