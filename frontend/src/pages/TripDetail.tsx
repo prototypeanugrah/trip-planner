@@ -12,107 +12,112 @@ import { Reorder, motion, AnimatePresence } from 'framer-motion';
 import { Users, Sparkles, Vote as VoteIcon, CheckCircle, ChevronLeft, Calendar, MapPin, MoreVertical, Trash2, Edit2, Check, GripVertical, Trophy } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Recommendation } from '@/services/api';
-import { SignedIn, SignedOut, RedirectToSignIn } from "@clerk/clerk-react";
+import { SignedIn, SignedOut, RedirectToSignIn, useUser } from "@clerk/clerk-react";
+
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 export function TripDetail() {
-  return (
-    <>
-      <SignedOut>
-        <RedirectToSignIn />
-      </SignedOut>
-      <SignedIn>
-        <TripDetailContent />
-      </SignedIn>
-    </>
-  );
+    console.log("Rendering TripDetail wrapper");
+    return (
+        <>
+            <SignedOut>
+                <RedirectToSignIn />
+            </SignedOut>
+            <SignedIn>
+                <ErrorBoundary>
+                    <TripDetailContent />
+                </ErrorBoundary>
+            </SignedIn>
+        </>
+    );
 }
 
 function TripDetailContent() {
-  const { tripId } = useParams<{ tripId: string }>();
-  const [activeTab, setActiveTab] = useState<'participants' | 'recommendations' | 'voting'>('participants');
-  const [isAddParticipantOpen, setIsAddParticipantOpen] = useState(false);
+    const { tripId } = useParams<{ tripId: string }>();
+    const [activeTab, setActiveTab] = useState<'participants' | 'recommendations' | 'voting'>('participants');
+    const [isAddParticipantOpen, setIsAddParticipantOpen] = useState(false);
 
-  const { data: trip, isLoading: isTripLoading } = useQuery({
-    queryKey: ['trip', tripId],
-    queryFn: () => TripService.getById(tripId!),
-    enabled: !!tripId
-  });
+    const { data: trip, isLoading: isTripLoading } = useQuery({
+        queryKey: ['trip', tripId],
+        queryFn: () => TripService.getById(tripId!),
+        enabled: !!tripId
+    });
 
-  if (isTripLoading || !trip) {
-    return <div className="flex items-center justify-center h-64">Loading...</div>;
-  }
+    if (isTripLoading || !trip) {
+        return <div className="flex items-center justify-center h-64">Loading...</div>;
+    }
 
-  return (
-    <div className="space-y-8 pb-20">
-      {/* Header */}
-      <div className="space-y-4">
-        <Link to="/" className="inline-flex items-center text-sm text-text-secondary hover:text-accent-blue transition-colors">
-            <ChevronLeft className="w-4 h-4 mr-1" /> Back to Trips
-        </Link>
-        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-            <div>
-                <h1 className="text-3xl font-bold tracking-tight">{trip.name}</h1>
-                <div className="flex flex-wrap items-center gap-4 mt-2 text-text-secondary text-sm">
-                    <span className="flex items-center gap-1.5">
-                        <Calendar className="w-4 h-4" />
-                        {trip.target_start_date ? new Date(trip.target_start_date).toLocaleDateString() : 'TBD'} - {trip.target_end_date ? new Date(trip.target_end_date).toLocaleDateString() : 'TBD'}
-                    </span>
-                    <span className="w-1 h-1 rounded-full bg-bg-elevated" />
-                    <span className="capitalize px-2.5 py-0.5 rounded-full bg-bg-tertiary text-xs font-medium">
-                        {trip.status}
-                    </span>
+    return (
+        <div className="space-y-8 pb-20">
+            {/* Header */}
+            <div className="space-y-4">
+                <Link to="/" className="inline-flex items-center text-sm text-text-secondary hover:text-accent-blue transition-colors">
+                    <ChevronLeft className="w-4 h-4 mr-1" /> Back to Trips
+                </Link>
+                <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                    <div>
+                        <h1 className="text-3xl font-bold tracking-tight">{trip.name}</h1>
+                        <div className="flex flex-wrap items-center gap-4 mt-2 text-text-secondary text-sm">
+                            <span className="flex items-center gap-1.5">
+                                <Calendar className="w-4 h-4" />
+                                {trip.target_start_date ? new Date(trip.target_start_date).toLocaleDateString() : 'TBD'} - {trip.target_end_date ? new Date(trip.target_end_date).toLocaleDateString() : 'TBD'}
+                            </span>
+                            <span className="w-1 h-1 rounded-full bg-bg-elevated" />
+                            <span className="capitalize px-2.5 py-0.5 rounded-full bg-bg-tertiary text-xs font-medium">
+                                {trip.status}
+                            </span>
+                        </div>
+                    </div>
+                    <Button onClick={() => { }} disabled={trip.status === 'finalized'} variant={trip.status === 'finalized' ? 'ghost' : 'primary'}>
+                        {trip.status === 'finalized' ? 'Trip Finalized' : 'Finalize Trip'}
+                    </Button>
                 </div>
             </div>
-            <Button onClick={() => {}} disabled={trip.status === 'finalized'} variant={trip.status === 'finalized' ? 'ghost' : 'primary'}>
-                {trip.status === 'finalized' ? 'Trip Finalized' : 'Finalize Trip'}
-            </Button>
+
+            {/* Workflow Tabs */}
+            <div className="border-b border-border">
+                <div className="flex gap-6 overflow-x-auto">
+                    <TabButton
+                        active={activeTab === 'participants'}
+                        onClick={() => setActiveTab('participants')}
+                        icon={<Users className="w-4 h-4" />}
+                        label="Participants"
+                    />
+                    <TabButton
+                        active={activeTab === 'recommendations'}
+                        onClick={() => setActiveTab('recommendations')}
+                        icon={<Sparkles className="w-4 h-4" />}
+                        label="AI Recommendations"
+                    />
+                    <TabButton
+                        active={activeTab === 'voting'}
+                        onClick={() => setActiveTab('voting')}
+                        icon={<VoteIcon className="w-4 h-4" />}
+                        label="Voting"
+                    />
+                </div>
+            </div>
+
+            {/* Tab Content */}
+            <div className="animate-fade-in">
+                {activeTab === 'participants' && (
+                    <ParticipantsView tripId={tripId!} onAddClick={() => setIsAddParticipantOpen(true)} />
+                )}
+                {activeTab === 'recommendations' && (
+                    <RecommendationsView tripId={tripId!} />
+                )}
+                {activeTab === 'voting' && (
+                    <VotingView tripId={tripId!} />
+                )}
+            </div>
+
+            <AddParticipantWizard
+                isOpen={isAddParticipantOpen}
+                onClose={() => setIsAddParticipantOpen(false)}
+                tripId={tripId!}
+            />
         </div>
-      </div>
-
-      {/* Workflow Tabs */}
-      <div className="border-b border-border">
-        <div className="flex gap-6 overflow-x-auto">
-            <TabButton 
-                active={activeTab === 'participants'} 
-                onClick={() => setActiveTab('participants')}
-                icon={<Users className="w-4 h-4" />}
-                label="Participants"
-            />
-            <TabButton 
-                active={activeTab === 'recommendations'} 
-                onClick={() => setActiveTab('recommendations')}
-                icon={<Sparkles className="w-4 h-4" />}
-                label="AI Recommendations"
-            />
-            <TabButton 
-                active={activeTab === 'voting'} 
-                onClick={() => setActiveTab('voting')}
-                icon={<VoteIcon className="w-4 h-4" />}
-                label="Voting"
-            />
-        </div>
-      </div>
-
-      {/* Tab Content */}
-      <div className="animate-fade-in">
-        {activeTab === 'participants' && (
-            <ParticipantsView tripId={tripId!} onAddClick={() => setIsAddParticipantOpen(true)} />
-        )}
-        {activeTab === 'recommendations' && (
-            <RecommendationsView tripId={tripId!} />
-        )}
-        {activeTab === 'voting' && (
-            <VotingView tripId={tripId!} />
-        )}
-      </div>
-
-      <AddParticipantWizard 
-        isOpen={isAddParticipantOpen} 
-        onClose={() => setIsAddParticipantOpen(false)} 
-        tripId={tripId!} 
-      />
-    </div>
-  );
+    );
 }
 
 function TabButton({ active, onClick, icon, label }: { active: boolean, onClick: () => void, icon: React.ReactNode, label: string }) {
@@ -121,8 +126,8 @@ function TabButton({ active, onClick, icon, label }: { active: boolean, onClick:
             onClick={onClick}
             className={cn(
                 "flex items-center gap-2 pb-3 px-1 text-sm font-medium border-b-2 transition-colors whitespace-nowrap",
-                active 
-                    ? "border-accent-blue text-accent-blue" 
+                active
+                    ? "border-accent-blue text-accent-blue"
                     : "border-transparent text-text-secondary hover:text-text-primary hover:border-border"
             )}
         >
@@ -138,7 +143,7 @@ function ParticipantsView({ tripId, onAddClick }: { tripId: string, onAddClick: 
     const queryClient = useQueryClient();
     const [editingParticipant, setEditingParticipant] = useState<Participant | null>(null);
     const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-    
+
     const [transferModalOpen, setTransferModalOpen] = useState(false);
     const [leavingOrganizerId, setLeavingOrganizerId] = useState<string | null>(null);
     const [newOrganizerId, setNewOrganizerId] = useState<string>("");
@@ -149,7 +154,7 @@ function ParticipantsView({ tripId, onAddClick }: { tripId: string, onAddClick: 
     });
 
     const deleteMutation = useMutation({
-        mutationFn: ({ participantId, userEmail, transferToId }: { participantId: string, userEmail?: string, transferToId?: string }) => 
+        mutationFn: ({ participantId, userEmail, transferToId }: { participantId: string, userEmail?: string, transferToId?: string }) =>
             TripService.deleteParticipant(tripId, participantId, userEmail, transferToId),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['participants', tripId] });
@@ -158,7 +163,7 @@ function ParticipantsView({ tripId, onAddClick }: { tripId: string, onAddClick: 
             setNewOrganizerId("");
         },
         onError: (error: any) => {
-             alert(error.response?.data?.detail || "Failed to remove participant");
+            alert(error.response?.data?.detail || "Failed to remove participant");
         }
     });
 
@@ -186,15 +191,15 @@ function ParticipantsView({ tripId, onAddClick }: { tripId: string, onAddClick: 
         if (isSelf && p.role === 'organizer') {
             const otherParticipants = participants?.filter(part => part.id !== p.id) || [];
             if (otherParticipants.length === 0) {
-                 if (confirm("You are the only participant. Do you want to delete the trip instead?")) {
-                     TripService.delete(tripId).then(() => {
-                         window.location.href = "/";
-                     }).catch((err) => {
-                         alert("Failed to delete trip: " + (err.response?.data?.detail || err.message));
-                     });
-                 }
-                 setOpenMenuId(null);
-                 return;
+                if (confirm("You are the only participant. Do you want to delete the trip instead?")) {
+                    TripService.delete(tripId).then(() => {
+                        window.location.href = "/";
+                    }).catch((err) => {
+                        alert("Failed to delete trip: " + (err.response?.data?.detail || err.message));
+                    });
+                }
+                setOpenMenuId(null);
+                return;
             } else {
                 setLeavingOrganizerId(p.id);
                 setTransferModalOpen(true);
@@ -204,17 +209,17 @@ function ParticipantsView({ tripId, onAddClick }: { tripId: string, onAddClick: 
         }
 
         if (confirm('Are you sure you want to remove this participant?')) {
-             deleteMutation.mutate({ participantId: p.id, userEmail: userEmail || undefined });
+            deleteMutation.mutate({ participantId: p.id, userEmail: userEmail || undefined });
         }
         setOpenMenuId(null);
     };
 
     const handleTransferAndLeave = () => {
         if (!leavingOrganizerId || !newOrganizerId) return;
-        deleteMutation.mutate({ 
-            participantId: leavingOrganizerId, 
+        deleteMutation.mutate({
+            participantId: leavingOrganizerId,
             userEmail: userEmail || undefined,
-            transferToId: newOrganizerId 
+            transferToId: newOrganizerId
         });
     };
 
@@ -256,11 +261,11 @@ function ParticipantsView({ tripId, onAddClick }: { tripId: string, onAddClick: 
                                     <td className="px-4 py-3 text-text-secondary">
                                         {p.survey_response?.location || <span className="text-text-tertiary">-</span>}
                                     </td>
-                                    <td className={cn("px-4 py-3 capitalize", 
+                                    <td className={cn("px-4 py-3 capitalize",
                                         p.survey_response?.budget === 'low' ? "text-yellow-500" :
-                                        p.survey_response?.budget === 'medium' ? "text-green-500" :
-                                        p.survey_response?.budget === 'high' ? "text-red-500" :
-                                        "text-text-secondary"
+                                            p.survey_response?.budget === 'medium' ? "text-green-500" :
+                                                p.survey_response?.budget === 'high' ? "text-red-500" :
+                                                    "text-text-secondary"
                                     )}>
                                         {p.survey_response?.budget || <span className="text-text-tertiary">-</span>}
                                     </td>
@@ -282,7 +287,7 @@ function ParticipantsView({ tripId, onAddClick }: { tripId: string, onAddClick: 
                                     </td>
                                     <td className="px-2 py-3 text-right relative">
                                         <div className={cn("opacity-0 group-hover:opacity-100 transition-opacity", openMenuId === p.id && "opacity-100")}>
-                                            <button 
+                                            <button
                                                 onClick={(e) => {
                                                     e.stopPropagation();
                                                     setOpenMenuId(openMenuId === p.id ? null : p.id);
@@ -291,16 +296,16 @@ function ParticipantsView({ tripId, onAddClick }: { tripId: string, onAddClick: 
                                             >
                                                 <MoreVertical className="w-4 h-4" />
                                             </button>
-                                            
+
                                             {openMenuId === p.id && (
                                                 <div className="absolute right-8 top-1/2 -translate-y-1/2 w-32 bg-bg-elevated border border-border rounded-lg shadow-lg py-1 z-10 animate-in fade-in zoom-in-95 duration-100 origin-right">
-                                                    <button 
+                                                    <button
                                                         onClick={(e) => { e.stopPropagation(); handleEditClick(p); }}
                                                         className="w-full px-3 py-2 text-sm text-left text-text-secondary hover:text-text-primary hover:bg-bg-tertiary flex items-center gap-2"
                                                     >
                                                         <Edit2 className="w-3.5 h-3.5" /> Edit
                                                     </button>
-                                                    <button 
+                                                    <button
                                                         onClick={(e) => { e.stopPropagation(); handleDeleteClick(p); }}
                                                         className="w-full px-3 py-2 text-sm text-left text-red-500 hover:bg-red-500/10 flex items-center gap-2"
                                                     >
@@ -324,7 +329,7 @@ function ParticipantsView({ tripId, onAddClick }: { tripId: string, onAddClick: 
                 </div>
             </div>
 
-            <AddParticipantWizard 
+            <AddParticipantWizard
                 isOpen={!!editingParticipant}
                 onClose={() => setEditingParticipant(null)}
                 tripId={tripId}
@@ -339,10 +344,10 @@ function ParticipantsView({ tripId, onAddClick }: { tripId: string, onAddClick: 
             >
                 <div className="space-y-4">
                     <div className="space-y-2">
-                         <label className="text-sm font-medium">Select New Organizer</label>
-                         <select 
+                        <label className="text-sm font-medium">Select New Organizer</label>
+                        <select
                             className="w-full h-10 rounded-md border border-border bg-bg-elevated px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent-blue"
-                            value={newOrganizerId} 
+                            value={newOrganizerId}
                             onChange={e => setNewOrganizerId(e.target.value)}
                         >
                             <option value="" disabled>Select person...</option>
@@ -355,9 +360,9 @@ function ParticipantsView({ tripId, onAddClick }: { tripId: string, onAddClick: 
                         <Button variant="secondary" onClick={() => setTransferModalOpen(false)}>
                             Cancel
                         </Button>
-                        <Button 
-                            onClick={handleTransferAndLeave} 
-                            disabled={!newOrganizerId} 
+                        <Button
+                            onClick={handleTransferAndLeave}
+                            disabled={!newOrganizerId}
                             isLoading={deleteMutation.isPending}
                         >
                             Transfer Role & Leave
@@ -396,12 +401,12 @@ function RecommendationsView({ tripId }: { tripId: string }) {
 
     return (
         <div className="space-y-6">
-             <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between">
                 <div className="space-y-1">
                     <h3 className="text-lg font-semibold">Destination Ideas</h3>
                     <p className="text-sm text-text-secondary">AI-curated based on group preferences</p>
                 </div>
-                <Button 
+                <Button
                     onClick={handleGenerateClick}
                     isLoading={generateMutation.isPending}
                     variant="secondary"
@@ -464,7 +469,7 @@ function RecommendationsView({ tripId }: { tripId: string }) {
                             value={customPreference}
                             onChange={(e) => setCustomPreference(e.target.value)}
                         />
-                         <p className="text-sm text-text-secondary">
+                        <p className="text-sm text-text-secondary">
                             Leave blank to generate based on group surveys only.
                         </p>
                     </div>
@@ -472,7 +477,7 @@ function RecommendationsView({ tripId }: { tripId: string }) {
                         <Button variant="secondary" onClick={() => setIsGenerateModalOpen(false)}>
                             Cancel
                         </Button>
-                        <Button 
+                        <Button
                             onClick={() => generateMutation.mutate(customPreference)}
                             isLoading={generateMutation.isPending}
                         >
@@ -498,7 +503,7 @@ function VotingStatus({ participants, votes }: { participants: Participant[], vo
                 <span className="text-sm text-text-secondary">{count} / {total} voted</span>
             </div>
             <div className="w-full bg-bg-tertiary rounded-full h-2 mb-3 relative overflow-hidden">
-                <motion.div 
+                <motion.div
                     className="bg-accent-blue h-2 rounded-full absolute top-0 left-0"
                     initial={{ width: 0 }}
                     animate={{ width: `${total > 0 ? (count / total) * 100 : 0}%` }}
@@ -507,7 +512,7 @@ function VotingStatus({ participants, votes }: { participants: Participant[], vo
             </div>
             <AnimatePresence mode="wait">
                 {missing.length > 0 ? (
-                    <motion.div 
+                    <motion.div
                         key="waiting"
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -517,7 +522,7 @@ function VotingStatus({ participants, votes }: { participants: Participant[], vo
                         Waiting for: <span className="font-medium text-text-primary">{missing.map(p => p.name).join(', ')}</span>
                     </motion.div>
                 ) : (
-                    <motion.div 
+                    <motion.div
                         key="done"
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
@@ -596,9 +601,9 @@ function VotingView({ tripId }: { tripId: string }) {
                 setRankings(recommendations);
             }
         } else if (!selectedParticipantId) {
-             setHasVoted(false);
-             // Reset rankins when no participant is selected to ensure clean state
-             setRankings(recommendations || []);
+            setHasVoted(false);
+            // Reset rankins when no participant is selected to ensure clean state
+            setRankings(recommendations || []);
         }
     }, [selectedParticipantId, voteRound, recommendations, isEditing]);
 
@@ -621,8 +626,8 @@ function VotingView({ tripId }: { tripId: string }) {
     const endVotingMutation = useMutation({
         mutationFn: () => TripService.getVoteResults(tripId),
         onSuccess: (data) => {
-             queryClient.setQueryData(['voteResults', tripId], data);
-             queryClient.invalidateQueries({ queryKey: ['voteRound', tripId] });
+            queryClient.setQueryData(['voteResults', tripId], data);
+            queryClient.invalidateQueries({ queryKey: ['voteRound', tripId] });
         }
     });
 
@@ -636,9 +641,9 @@ function VotingView({ tripId }: { tripId: string }) {
         const votes = results?.vote_round?.votes || [];
 
         return (
-             <div className="space-y-12 max-w-4xl mx-auto animate-fade-in">
+            <div className="space-y-12 max-w-4xl mx-auto animate-fade-in">
                 <div className="text-center space-y-4">
-                    <motion.div 
+                    <motion.div
                         initial={{ scale: 0 }}
                         animate={{ scale: 1 }}
                         transition={{ type: "spring", duration: 0.8 }}
@@ -653,10 +658,10 @@ function VotingView({ tripId }: { tripId: string }) {
                 </div>
 
                 {/* Leaderboard Section */}
-                <LocationLeaderboard 
-                    winnerId={winnerId} 
-                    rounds={rounds} 
-                    recommendations={recommendations} 
+                <LocationLeaderboard
+                    winnerId={winnerId}
+                    rounds={rounds}
+                    recommendations={recommendations}
                     votes={votes}
                 />
 
@@ -672,7 +677,7 @@ function VotingView({ tripId }: { tripId: string }) {
                                 <Card key={index} className="overflow-hidden">
                                     <CardHeader className="py-3 bg-bg-tertiary/50">
                                         <CardTitle className="text-sm font-medium">Round {index + 1}</CardTitle>
-                        </CardHeader>
+                                    </CardHeader>
                                     <CardContent className="pt-4">
                                         <div className="space-y-3">
                                             {Object.entries(round)
@@ -681,7 +686,7 @@ function VotingView({ tripId }: { tripId: string }) {
                                                     const rec = recommendations.find(r => r.id === recId);
                                                     const totalVotes = Object.values(round).reduce((a: number, b: number) => a + b, 0);
                                                     const percentage = ((count as number) / totalVotes) * 100;
-                                                    
+
                                                     return (
                                                         <div key={recId} className="space-y-1">
                                                             <div className="flex justify-between text-sm">
@@ -689,7 +694,7 @@ function VotingView({ tripId }: { tripId: string }) {
                                                                 <span className="text-text-secondary">{String(count)} votes</span>
                                                             </div>
                                                             <div className="h-2 bg-bg-tertiary rounded-full overflow-hidden">
-                                                                <motion.div 
+                                                                <motion.div
                                                                     initial={{ width: 0 }}
                                                                     animate={{ width: `${percentage}%` }}
                                                                     transition={{ duration: 1, delay: 0.2 }}
@@ -702,9 +707,9 @@ function VotingView({ tripId }: { tripId: string }) {
                                                         </div>
                                                     );
                                                 })}
-                             </div>
-                        </CardContent>
-                    </Card>
+                                        </div>
+                                    </CardContent>
+                                </Card>
                             ))}
                         </div>
                     </div>
@@ -725,9 +730,9 @@ function VotingView({ tripId }: { tripId: string }) {
                             }).map((vote: Vote) => {
                                 const participant = participants.find(p => p.id === vote.participant_id);
                                 const topChoices = vote.rankings.slice(0, 2).map(id => recommendations.find(r => r.id === id));
-                                
+
                                 return (
-                                    <motion.div 
+                                    <motion.div
                                         key={vote.id}
                                         initial={{ opacity: 0, y: 20 }}
                                         animate={{ opacity: 1, y: 0 }}
@@ -741,12 +746,12 @@ function VotingView({ tripId }: { tripId: string }) {
                                         </div>
                                         <div className="space-y-2">
                                             {topChoices.map((choice, idx) => (
-                                                <div 
-                                                    key={choice?.id || idx} 
+                                                <div
+                                                    key={choice?.id || idx}
                                                     className={cn(
                                                         "flex items-center gap-3 p-2 rounded-md text-sm",
-                                                        choice?.id === winnerId 
-                                                            ? "bg-yellow-50 border border-yellow-200 text-yellow-800" 
+                                                        choice?.id === winnerId
+                                                            ? "bg-yellow-50 border border-yellow-200 text-yellow-800"
                                                             : "bg-bg-tertiary text-text-secondary"
                                                     )}
                                                 >
@@ -776,17 +781,17 @@ function VotingView({ tripId }: { tripId: string }) {
 
     return (
         <div className="space-y-6 max-w-2xl mx-auto">
-             <VotingStatus participants={participants} votes={voteRound.votes} />
-             
-             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <VotingStatus participants={participants} votes={voteRound.votes} />
+
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <h3 className="text-lg font-semibold">Cast Your Vote</h3>
                     <p className="text-sm text-text-secondary">Rank the destinations from most to least favorite.</p>
                 </div>
-                
-                 <div className="flex items-center gap-2">
+
+                <div className="flex items-center gap-2">
                     <span className="text-sm text-text-secondary whitespace-nowrap">Voting as:</span>
-                    <select 
+                    <select
                         className="h-9 rounded-md border border-border bg-bg-elevated px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent-blue"
                         value={selectedParticipantId || ""}
                         onChange={(e) => setSelectedParticipantId(e.target.value)}
@@ -811,8 +816,8 @@ function VotingView({ tripId }: { tripId: string }) {
                         </p>
                     </div>
                     <div className="flex gap-3">
-                        <Button 
-                            variant="secondary" 
+                        <Button
+                            variant="secondary"
                             onClick={() => {
                                 setIsEditing(true);
                                 setHasVoted(false);
@@ -825,8 +830,8 @@ function VotingView({ tripId }: { tripId: string }) {
                                 initial={{ opacity: 0, scale: 0.9 }}
                                 animate={{ opacity: 1, scale: 1 }}
                             >
-                                <Button 
-                                    variant="secondary" 
+                                <Button
+                                    variant="secondary"
                                     onClick={() => endVotingMutation.mutate()}
                                     isLoading={endVotingMutation.isPending}
                                 >
@@ -838,7 +843,7 @@ function VotingView({ tripId }: { tripId: string }) {
                 </div>
             ) : !selectedParticipantId ? (
                 <div className="flex flex-col items-center justify-center py-12 border-2 border-dashed border-border rounded-xl bg-bg-secondary/30">
-                     <VoteIcon className="w-8 h-8 text-text-tertiary mb-3" />
+                    <VoteIcon className="w-8 h-8 text-text-tertiary mb-3" />
                     <p className="text-text-secondary font-medium">Select your name above to start voting</p>
                 </div>
             ) : (
@@ -861,8 +866,8 @@ function VotingView({ tripId }: { tripId: string }) {
                     </Reorder.Group>
 
                     <div className="flex justify-end pt-4">
-                        <Button 
-                            size="lg" 
+                        <Button
+                            size="lg"
                             onClick={() => submitVoteMutation.mutate()}
                             isLoading={submitVoteMutation.isPending}
                             className="w-full sm:w-auto"
@@ -882,28 +887,28 @@ function LocationLeaderboard({ winnerId, rounds, recommendations, votes }: { win
         const finalRound = rounds[rounds.length - 1] || {};
         const candidates = new Set<string>();
         rounds.forEach(r => Object.keys(r).forEach(k => candidates.add(k)));
-        
+
         const sortedCandidates = Array.from(candidates).sort((a, b) => {
             // If one is winner, it comes first
             if (a === winnerId) return -1;
             if (b === winnerId) return 1;
-            
+
             // Check which round they were eliminated in
             const roundIndexA = rounds.findIndex(r => !r[a]);
             const roundIndexB = rounds.findIndex(r => !r[b]);
-            
+
             // If both survived to the end (or same round), compare votes in their last active round
             if (roundIndexA === -1 && roundIndexB === -1) {
                 return (finalRound[b] || 0) - (finalRound[a] || 0);
             }
-            
+
             // The one who lasted longer is better
             if (roundIndexA !== roundIndexB) {
                 const effectiveA = roundIndexA === -1 ? 999 : roundIndexA;
                 const effectiveB = roundIndexB === -1 ? 999 : roundIndexB;
                 return effectiveB - effectiveA;
             }
-            
+
             // If eliminated in same round, compare votes in the round BEFORE they were eliminated
             // Or just compare votes in the last round they both existed
             const lastCommonRoundIdx = (roundIndexA === -1 ? rounds.length : roundIndexA) - 1;
@@ -939,7 +944,7 @@ function LocationLeaderboard({ winnerId, rounds, recommendations, votes }: { win
             <div className="flex justify-center items-end gap-4 h-64">
                 {/* Second Place */}
                 {second && (
-                    <motion.div 
+                    <motion.div
                         initial={{ opacity: 0, y: 50 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.2 }}
@@ -957,7 +962,7 @@ function LocationLeaderboard({ winnerId, rounds, recommendations, votes }: { win
 
                 {/* First Place */}
                 {first && (
-                    <motion.div 
+                    <motion.div
                         initial={{ opacity: 0, y: 50 }}
                         animate={{ opacity: 1, y: 0 }}
                         className="flex flex-col items-center w-1/3 max-w-[180px] z-10 -mx-2"
@@ -976,7 +981,7 @@ function LocationLeaderboard({ winnerId, rounds, recommendations, votes }: { win
 
                 {/* Third Place */}
                 {third && (
-                    <motion.div 
+                    <motion.div
                         initial={{ opacity: 0, y: 50 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.4 }}

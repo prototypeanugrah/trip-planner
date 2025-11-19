@@ -7,7 +7,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from sqlalchemy import or_
-from sqlmodel import select
+from sqlmodel import delete, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ...enums import ParticipantRole
@@ -353,6 +353,30 @@ async def delete_participant(
                 status_code=400,
                 detail="You are the only participant. Please delete the trip instead of leaving.",
             )
+
+    # Delete related records to avoid IntegrityError
+    from ...models import SurveyResponse, Vote, VoteItem
+
+    # 1. Delete Availability Windows
+    await session.exec(
+        delete(AvailabilityWindow).where(
+            AvailabilityWindow.participant_id == participant_id
+        )
+    )
+
+    # 2. Delete Survey Responses
+    await session.exec(
+        delete(SurveyResponse).where(SurveyResponse.participant_id == participant_id)
+    )
+
+    # 3. Delete Votes and Vote Items
+    vote_ids_result = await session.exec(
+        select(Vote.id).where(Vote.participant_id == participant_id)
+    )
+    vote_ids = vote_ids_result.all()
+    if vote_ids:
+        await session.exec(delete(VoteItem).where(VoteItem.vote_id.in_(vote_ids)))
+        await session.exec(delete(Vote).where(Vote.id.in_(vote_ids)))
 
     await session.delete(participant)
     await session.commit()
