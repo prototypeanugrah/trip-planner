@@ -9,11 +9,25 @@ import { Modal } from '@/components/ui/Modal';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { AddParticipantWizard } from '@/components/AddParticipantWizard';
 import { Reorder, motion, AnimatePresence } from 'framer-motion';
-import { Users, Sparkles, Vote as VoteIcon, CheckCircle, ChevronLeft, Calendar, MapPin, MoreVertical, Trash2, Edit2, X, Check, GripVertical, Trophy } from 'lucide-react';
+import { Users, Sparkles, Vote as VoteIcon, CheckCircle, ChevronLeft, Calendar, MapPin, MoreVertical, Trash2, Edit2, Check, GripVertical, Trophy } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Recommendation } from '@/services/api';
+import { SignedIn, SignedOut, RedirectToSignIn } from "@clerk/clerk-react";
 
 export function TripDetail() {
+  return (
+    <>
+      <SignedOut>
+        <RedirectToSignIn />
+      </SignedOut>
+      <SignedIn>
+        <TripDetailContent />
+      </SignedIn>
+    </>
+  );
+}
+
+function TripDetailContent() {
   const { tripId } = useParams<{ tripId: string }>();
   const [activeTab, setActiveTab] = useState<'participants' | 'recommendations' | 'voting'>('participants');
   const [isAddParticipantOpen, setIsAddParticipantOpen] = useState(false);
@@ -41,7 +55,7 @@ export function TripDetail() {
                 <div className="flex flex-wrap items-center gap-4 mt-2 text-text-secondary text-sm">
                     <span className="flex items-center gap-1.5">
                         <Calendar className="w-4 h-4" />
-                        {new Date(trip.target_start_date).toLocaleDateString()} - {new Date(trip.target_end_date).toLocaleDateString()}
+                        {trip.target_start_date ? new Date(trip.target_start_date).toLocaleDateString() : 'TBD'} - {trip.target_end_date ? new Date(trip.target_end_date).toLocaleDateString() : 'TBD'}
                     </span>
                     <span className="w-1 h-1 rounded-full bg-bg-elevated" />
                     <span className="capitalize px-2.5 py-0.5 rounded-full bg-bg-tertiary text-xs font-medium">
@@ -101,7 +115,7 @@ export function TripDetail() {
   );
 }
 
-function TabButton({ active, onClick, icon, label }: { active: boolean, onClick: () => void, icon: any, label: string }) {
+function TabButton({ active, onClick, icon, label }: { active: boolean, onClick: () => void, icon: React.ReactNode, label: string }) {
     return (
         <button
             onClick={onClick}
@@ -207,7 +221,7 @@ function ParticipantsView({ tripId, onAddClick }: { tripId: string, onAddClick: 
                                         </div>
                                     </td>
                                     <td className="px-4 py-3 text-text-secondary whitespace-nowrap">
-                                        {new Date(p.created_at).toLocaleDateString()}
+                                        {p.created_at ? new Date(p.created_at).toLocaleDateString() : '-'}
                                     </td>
                                     <td className="px-2 py-3 text-right relative">
                                         <div className={cn("opacity-0 group-hover:opacity-100 transition-opacity", openMenuId === p.id && "opacity-100")}>
@@ -384,7 +398,6 @@ function VotingStatus({ participants, votes }: { participants: Participant[], vo
     const total = participants.length;
     const count = votedParticipantIds.size;
     const missing = participants.filter(p => !votedParticipantIds.has(p.id));
-    const allIn = count === total && total > 0;
 
     return (
         <div className="bg-bg-secondary/50 border border-border rounded-lg p-4">
@@ -459,7 +472,7 @@ function VotingView({ tripId }: { tripId: string }) {
         if (recommendations && rankings.length === 0) {
             setRankings(recommendations);
         }
-    }, [recommendations]);
+    }, [recommendations, rankings.length]);
 
     // Reset editing state when participant changes
     useEffect(() => {
@@ -488,7 +501,7 @@ function VotingView({ tripId }: { tripId: string }) {
             } else {
                 setHasVoted(false);
                 // Reset rankings to default order (by score/default) if they haven't voted yet
-                 setRankings(recommendations);
+                setRankings(recommendations);
             }
         } else if (!selectedParticipantId) {
              setHasVoted(false);
@@ -526,8 +539,7 @@ function VotingView({ tripId }: { tripId: string }) {
     }
 
     if (voteRound.status === 'closed' || (results && results.vote_round.status === 'closed')) {
-        const winnerId = results?.vote_round?.results?.winner;
-        const winner = recommendations.find(r => r.id === winnerId);
+        const winnerId = results?.vote_round?.results?.winner || "";
         const rounds = results?.vote_round?.results?.rounds || [];
         const votes = results?.vote_round?.votes || [];
 
@@ -564,7 +576,7 @@ function VotingView({ tripId }: { tripId: string }) {
                             Round-by-Round Breakdown
                         </h4>
                         <div className="space-y-4">
-                            {rounds.map((round: any, index: number) => (
+                            {rounds.map((round: Record<string, number>, index: number) => (
                                 <Card key={index} className="overflow-hidden">
                                     <CardHeader className="py-3 bg-bg-tertiary/50">
                                         <CardTitle className="text-sm font-medium">Round {index + 1}</CardTitle>
@@ -575,14 +587,14 @@ function VotingView({ tripId }: { tripId: string }) {
                                                 .sort(([, a], [, b]) => (b as number) - (a as number))
                                                 .map(([recId, count]) => {
                                                     const rec = recommendations.find(r => r.id === recId);
-                                                    const totalVotes = Object.values(round).reduce((a: number, b: any) => a + b, 0);
+                                                    const totalVotes = Object.values(round).reduce((a: number, b: number) => a + b, 0);
                                                     const percentage = ((count as number) / totalVotes) * 100;
                                                     
                                                     return (
                                                         <div key={recId} className="space-y-1">
                                                             <div className="flex justify-between text-sm">
                                                                 <span className="font-medium">{rec?.title || 'Unknown'}</span>
-                                                                <span className="text-text-secondary">{count} votes</span>
+                                                                <span className="text-text-secondary">{String(count)} votes</span>
                                                             </div>
                                                             <div className="h-2 bg-bg-tertiary rounded-full overflow-hidden">
                                                                 <motion.div 
@@ -772,7 +784,7 @@ function VotingView({ tripId }: { tripId: string }) {
     );
 }
 
-function LocationLeaderboard({ winnerId, rounds, recommendations, votes }: { winnerId: string, rounds: any[], recommendations: Recommendation[], votes: Vote[] }) {
+function LocationLeaderboard({ winnerId, rounds, recommendations, votes }: { winnerId: string, rounds: Record<string, number>[], recommendations: Recommendation[], votes: Vote[] }) {
     // Calculate top 3
     const getTop3 = () => {
         const finalRound = rounds[rounds.length - 1] || {};

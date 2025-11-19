@@ -14,7 +14,7 @@ export function RadioCardGroup({ value, onChange, children, className }: RadioCa
       {React.Children.map(children, (child) => {
         if (React.isValidElement(child)) {
           const props = child.props as { value: string };
-          return React.cloneElement(child as React.ReactElement<any>, {
+          return React.cloneElement(child as React.ReactElement<{ checked: boolean; onChange: () => void } & React.HTMLAttributes<HTMLElement>>, {
             checked: props.value === value,
             onChange: () => onChange(props.value),
           });

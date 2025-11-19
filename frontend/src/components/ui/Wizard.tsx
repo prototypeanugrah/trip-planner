@@ -10,24 +10,10 @@ interface WizardStep {
 
 interface WizardProps {
   steps: WizardStep[];
-  onComplete: (data: any) => void;
-  defaultStep?: number;
   currentStep?: number;
 }
 
-export function Wizard({ steps, onComplete, defaultStep = 0, currentStep: controlledStep }: WizardProps) {
-  const [internalStep, setInternalStep] = React.useState(defaultStep);
-  
-  const currentStep = controlledStep !== undefined ? controlledStep : internalStep;
-  const [history, setHistory] = React.useState<number[]>([currentStep]);
-
-  // This is a simplified wizard that relies on children to control navigation
-  // or we can expose context. For now, let's just render the current step.
-  // In a real app, we'd use a context or render props pattern.
-
-  // But to make it usable with the current plan, I will just export a Stepper UI
-  // and let the parent manage the state, which is often more flexible.
-
+export function Wizard({ steps, currentStep = 0 }: WizardProps) {
   return (
     <div className="w-full">
        <div className="mb-8">

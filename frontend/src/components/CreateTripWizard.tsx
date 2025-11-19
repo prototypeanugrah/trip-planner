@@ -1,9 +1,10 @@
-import { useState } from 'react';
-import { useForm, Controller } from 'react-hook-form';
+import { useState, useEffect } from 'react';
+import { useForm, Controller, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
+import { useUser } from "@clerk/clerk-react";
 import { TripService } from '@/services/api';
 import { Modal } from '@/components/ui/Modal';
 import { Wizard } from '@/components/ui/Wizard';
@@ -11,7 +12,6 @@ import { Input } from '@/components/ui/Input';
 import { LocationInput } from '@/components/ui/LocationInput';
 import { Button } from '@/components/ui/Button';
 import { RadioCard, RadioCardGroup } from '@/components/ui/RadioGroup';
-import { Checkbox } from '@/components/ui/Checkbox';
 import { 
     Minus, 
     Plus, 
@@ -54,18 +54,32 @@ interface CreateTripWizardProps {
 export function CreateTripWizard({ isOpen, onClose }: CreateTripWizardProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { user } = useUser();
   const [step, setStep] = useState(0);
 
-  const { register, handleSubmit, watch, setValue, control, formState: { errors }, trigger } = useForm<CreateTripForm>({
+  const { register, handleSubmit, setValue, control, formState: { errors }, trigger } = useForm<CreateTripForm>({
     resolver: zodResolver(createTripSchema),
     defaultValues: {
       duration: 3,
       preferences: [],
       budget: 'medium',
       start_date: new Date().toISOString().split('T')[0],
+      organizer_email: user?.primaryEmailAddress?.emailAddress || "",
     },
     mode: 'onChange'
   });
+
+  // Helpers
+  const duration = useWatch({ control, name: 'duration' });
+  const preferences = useWatch({ control, name: 'preferences' });
+  const organizerPhone = useWatch({ control, name: 'organizer_phone' });
+  const budget = useWatch({ control, name: 'budget' });
+
+  useEffect(() => {
+    if (user?.primaryEmailAddress?.emailAddress) {
+      setValue('organizer_email', user.primaryEmailAddress.emailAddress);
+    }
+  }, [user, setValue]);
 
   const createTripMutation = useMutation({
     mutationFn: async (data: CreateTripForm) => {
@@ -129,11 +143,6 @@ export function CreateTripWizard({ isOpen, onClose }: CreateTripWizardProps) {
   const onSubmit = (data: CreateTripForm) => {
     createTripMutation.mutate(data);
   };
-
-  // Helpers
-  const duration = watch('duration');
-  const preferences = watch('preferences');
-  const organizerPhone = watch('organizer_phone');
 
   const togglePreference = (value: string) => {
     const current = preferences || [];
@@ -251,8 +260,8 @@ export function CreateTripWizard({ isOpen, onClose }: CreateTripWizardProps) {
                     <p className="text-sm text-text-secondary">The budget is exclusively allocated for activities and dining purposes.</p>
                 </div>
                 <RadioCardGroup 
-                    value={watch('budget')} 
-                    onChange={(val: string) => setValue('budget', val as any)}
+                    value={budget} 
+                    onChange={(val: string) => setValue('budget', val as 'low' | 'medium' | 'high')}
                     className="grid-cols-3 gap-3"
                 >
                     <RadioCard 
@@ -327,7 +336,6 @@ export function CreateTripWizard({ isOpen, onClose }: CreateTripWizardProps) {
         <form onSubmit={handleSubmit(onSubmit)}>
             <Wizard 
                 steps={steps.map(s => ({ ...s, component: s.component }))} 
-                onComplete={() => {}}
                 currentStep={step}
             />
             
@@ -344,7 +352,7 @@ export function CreateTripWizard({ isOpen, onClose }: CreateTripWizardProps) {
             </div>
             {createTripMutation.isError && (
                  <p className="text-sm text-red-500 mt-2 text-right">
-                    {(createTripMutation.error as any)?.response?.data?.detail || createTripMutation.error.message || "Failed to create trip."}
+                    {(createTripMutation.error as unknown as { response?: { data?: { detail?: string } } })?.response?.data?.detail || createTripMutation.error.message || "Failed to create trip."}
                  </p>
             )}
         </form>

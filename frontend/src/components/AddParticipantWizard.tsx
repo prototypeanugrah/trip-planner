@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm, Controller, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -41,7 +41,7 @@ interface AddParticipantWizardProps {
 
 export function AddParticipantWizard({ isOpen, onClose, tripId, initialData }: AddParticipantWizardProps) {
   const queryClient = useQueryClient();
-  const { register, handleSubmit, watch, setValue, control, formState: { errors }, reset } = useForm<ParticipantForm>({
+  const { register, handleSubmit, setValue, control, formState: { errors }, reset, watch } = useForm<ParticipantForm>({
     resolver: zodResolver(participantSchema),
     defaultValues: {
         preferences: [],
@@ -49,13 +49,16 @@ export function AddParticipantWizard({ isOpen, onClose, tripId, initialData }: A
     }
   });
 
+  const preferences = useWatch({ control, name: 'preferences' });
+  const phone = useWatch({ control, name: 'phone' });
+
   useEffect(() => {
     if (isOpen && initialData) {
         reset({
             name: initialData.name,
             phone: initialData.phone || '',
             location: initialData.survey_response?.location || '',
-            budget: (initialData.survey_response?.budget as any) || 'medium',
+            budget: (initialData.survey_response?.budget as 'low' | 'medium' | 'high') || 'medium',
             preferences: initialData.survey_response?.preferences || []
         });
     } else if (isOpen && !initialData) {
@@ -107,8 +110,6 @@ export function AddParticipantWizard({ isOpen, onClose, tripId, initialData }: A
     mutation.mutate(data);
   };
 
-  const preferences = watch('preferences');
-  const phone = watch('phone');
   const togglePreference = (value: string) => {
     const current = preferences || [];
     if (current.includes(value)) {
@@ -157,7 +158,7 @@ export function AddParticipantWizard({ isOpen, onClose, tripId, initialData }: A
                 </div>
                 <RadioCardGroup 
                     value={watch('budget')} 
-                    onChange={(val: string) => setValue('budget', val as any)}
+                    onChange={(val: string) => setValue('budget', val as 'low' | 'medium' | 'high')}
                     className="grid-cols-3 gap-3"
                 >
                     <RadioCard 

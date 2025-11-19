@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
@@ -113,8 +113,16 @@ async def create_trip(
 
 
 @router.get("", response_model=List[TripRead])
-async def list_trips(session: AsyncSession = Depends(get_db_session)) -> List[Trip]:
-    result = await session.exec(select(Trip).order_by(Trip.created_at.desc()))
+async def list_trips(
+    email: Optional[str] = None,
+    session: AsyncSession = Depends(get_db_session),
+) -> List[Trip]:
+    query = select(Trip).order_by(Trip.created_at.desc())
+
+    if email:
+        query = query.join(Participant).where(Participant.email == email).distinct()
+
+    result = await session.exec(query)
     return result.all()
 
 

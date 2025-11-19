@@ -75,10 +75,25 @@ export interface Recommendation {
   tags: string[];
 }
 
+interface RecommendationResponse {
+    id: string;
+    title: string;
+    description: string;
+    score?: number;
+    cost_usd?: number;
+    extra?: {
+        highlights?: string[];
+        vibe?: string;
+        estimated_cost?: number;
+        confidence?: number;
+    };
+}
+
 // Service functions
 export const TripService = {
-  getAll: async () => {
-    const response = await api.get<Trip[]>("/trips");
+  getAll: async (email?: string) => {
+    const params = email ? { email } : {};
+    const response = await api.get<Trip[]>("/trips", { params });
     return response.data;
   },
   getById: async (id: string) => {
@@ -111,7 +126,7 @@ export const TripService = {
   deleteParticipant: async (tripId: string, participantId: string) => {
     await api.delete(`/trips/${tripId}/participants/${participantId}`);
   },
-  saveSurveyResponse: async (tripId: string, participantId: string, answers: any) => {
+  saveSurveyResponse: async (tripId: string, participantId: string, answers: Record<string, unknown>) => {
      const response = await api.patch(`/trips/${tripId}/participants/${participantId}/survey-response`, { answers });
      return response.data;
   },
@@ -119,16 +134,16 @@ export const TripService = {
     try {
         const response = await api.get(`/trips/${tripId}/participants/${participantId}/survey-response`);
         return response.data;
-    } catch (e) {
+    } catch {
         return null;
     }
   },
   getRecommendations: async (tripId: string) => {
-      const response = await api.get<any[]>(`/trips/${tripId}/recommendations`);
+      const response = await api.get<RecommendationResponse[]>(`/trips/${tripId}/recommendations`);
       return response.data.map(mapRecommendation);
   },
   generateRecommendations: async (tripId: string, customPreference?: string) => {
-      const response = await api.post<any[]>(`/trips/${tripId}/recommendations`, { 
+      const response = await api.post<RecommendationResponse[]>(`/trips/${tripId}/recommendations`, { 
         candidate_count: 5,
         custom_preference: customPreference
       });
@@ -164,17 +179,20 @@ export interface VoteRound {
   id: string;
   trip_id: string;
   status: "open" | "closed";
-  results?: any;
+  results?: {
+      winner?: string;
+      rounds?: Record<string, number>[];
+  };
   votes: Vote[];
 }
 
 export interface VoteResults {
   vote_round: VoteRound;
-  recommendations: any[]; // Using any for now, but effectively RecommendationRead[]
+  recommendations: RecommendationResponse[];
 }
 
 
-const mapRecommendation = (rec: any): Recommendation => {
+const mapRecommendation = (rec: RecommendationResponse): Recommendation => {
   const details = rec.extra || {};
   const highlights = Array.isArray(details.highlights) ? details.highlights : [];
   const vibe = details.vibe ? [details.vibe] : [];
@@ -198,4 +216,3 @@ const mapRecommendation = (rec: any): Recommendation => {
     tags: [...highlights, ...vibe]
   };
 };
-
