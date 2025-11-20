@@ -10,8 +10,8 @@ from sqlalchemy.orm import selectinload
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from ...enums import AuditEventType
-from ...models import AuditLog, DestinationRecommendation, Trip
+from ...enums import AuditEventType, VoteStatus
+from ...models import AuditLog, DestinationRecommendation, Trip, VoteRound
 from ...schemas import RecommendationCreate, RecommendationRead
 from ..dependencies import get_db_session, get_recommendation_service
 
@@ -57,4 +57,19 @@ async def generate_recommendations(
     await session.commit()
     for rec in recommendations:
         await session.refresh(rec)
+        
+    # Check if we need to start a new voting round
+    # If the latest round is closed, start a new one
+    latest_round_result = await session.exec(
+        select(VoteRound)
+        .where(VoteRound.trip_id == trip_id)
+        .order_by(VoteRound.created_at.desc())
+    )
+    latest_round = latest_round_result.first()
+    
+    if latest_round and latest_round.status == VoteStatus.closed:
+        new_round = VoteRound(trip_id=trip_id, status=VoteStatus.open)
+        session.add(new_round)
+        await session.commit()
+        
     return recommendations

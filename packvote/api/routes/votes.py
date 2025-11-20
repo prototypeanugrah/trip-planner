@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from typing import Optional
+
+from fastapi import APIRouter, Depends, Header, HTTPException, status
 from sqlalchemy.orm import selectinload
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -47,18 +49,43 @@ async def _get_open_vote_round(session: AsyncSession, trip_id: UUID) -> VoteRoun
     return vote_round
 
 
+async def _get_latest_vote_round(session: AsyncSession, trip_id: UUID) -> VoteRound:
+    vote_round_result = await session.exec(
+        select(VoteRound)
+        .where(VoteRound.trip_id == trip_id)
+        .order_by(VoteRound.created_at.desc())
+        .options(selectinload(VoteRound.votes))
+    )
+    vote_round = vote_round_result.first()
+    if vote_round:
+        return vote_round
+    
+    # Fallback: create first round if none exist
+    vote_round = VoteRound(trip_id=trip_id)
+    session.add(vote_round)
+    await session.commit()
+    await session.refresh(vote_round)
+    return vote_round
+
+
 @router.post(
     "/{trip_id}/votes", response_model=VoteRead, status_code=status.HTTP_201_CREATED
 )
 async def submit_vote(
     trip_id: UUID,
     payload: VoteSubmission,
+    x_user_email: Optional[str] = Header(None),
     session: AsyncSession = Depends(get_db_session),
 ) -> Vote:
     participant = await session.get(Participant, payload.participant_id)
     if not participant or participant.trip_id != trip_id:
         raise HTTPException(
             status_code=404, detail="Participant not found for this trip"
+        )
+
+    if x_user_email and participant.email != x_user_email:
+        raise HTTPException(
+            status_code=403, detail="Not authorized to vote for this participant"
         )
 
     sorted_rankings = sorted(payload.rankings, key=lambda entry: entry.rank)
@@ -146,7 +173,7 @@ async def submit_vote(
 async def get_current_vote_round(
     trip_id: UUID, session: AsyncSession = Depends(get_db_session)
 ) -> VoteRoundRead:
-    vote_round = await _get_open_vote_round(session, trip_id)
+    vote_round = await _get_latest_vote_round(session, trip_id)
     return VoteRoundRead.model_validate(vote_round)
 
 

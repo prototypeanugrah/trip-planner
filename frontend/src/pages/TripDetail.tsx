@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate, useOutletContext } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { TripService } from '@/services/api';
 import type { Participant, Vote } from '@/services/api';
@@ -9,8 +9,9 @@ import { Modal } from '@/components/ui/Modal';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { AddParticipantWizard } from '@/components/AddParticipantWizard';
 import { Reorder, motion, AnimatePresence } from 'framer-motion';
-import { Users, Sparkles, Vote as VoteIcon, CheckCircle, ChevronLeft, Calendar, MapPin, MoreVertical, Trash2, Edit2, Check, GripVertical, Trophy } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { ItineraryView } from '@/components/ItineraryView';
+import { Users, Sparkles, Vote as VoteIcon, CheckCircle, ChevronLeft, Calendar, MapPin, MoreVertical, Trash2, Edit2, Check, GripVertical, Trophy, Briefcase, Map } from 'lucide-react';
+import { cn, toTitleCase } from '@/lib/utils';
 import type { Recommendation } from '@/services/api';
 import { SignedIn, SignedOut, RedirectToSignIn, useUser } from "@clerk/clerk-react";
 
@@ -32,10 +33,13 @@ export function TripDetail() {
     );
 }
 
+
+
 function TripDetailContent() {
     const { tripId } = useParams<{ tripId: string }>();
-    const [activeTab, setActiveTab] = useState<'participants' | 'recommendations' | 'voting'>('participants');
+    const [activeTab, setActiveTab] = useState<'participants' | 'recommendations' | 'voting' | 'preparation'>('participants');
     const [isAddParticipantOpen, setIsAddParticipantOpen] = useState(false);
+    const { setIsSidebarCollapsed } = useOutletContext<{ setIsSidebarCollapsed: (collapsed: boolean) => void }>();
 
     const { data: trip, isLoading: isTripLoading } = useQuery({
         queryKey: ['trip', tripId],
@@ -43,71 +47,138 @@ function TripDetailContent() {
         enabled: !!tripId
     });
 
+    useEffect(() => {
+        if (activeTab === 'preparation') {
+            setIsSidebarCollapsed(true);
+        } else {
+            setIsSidebarCollapsed(false);
+        }
+        return () => setIsSidebarCollapsed(false);
+    }, [activeTab, setIsSidebarCollapsed]);
+
     if (isTripLoading || !trip) {
         return <div className="flex items-center justify-center h-64">Loading...</div>;
     }
 
     return (
-        <div className="space-y-8 pb-20">
+        <div className={cn("h-full flex flex-col", activeTab === 'preparation' ? "" : "space-y-8 pb-20")}>
             {/* Header */}
-            <div className="space-y-4">
+            <div className={cn("space-y-4", activeTab === 'preparation' ? "px-4 pt-4" : "")}>
                 <Link to="/" className="inline-flex items-center text-sm text-text-secondary hover:text-accent-blue transition-colors">
                     <ChevronLeft className="w-4 h-4 mr-1" /> Back to Trips
                 </Link>
                 <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
                     <div>
                         <h1 className="text-3xl font-bold tracking-tight">{trip.name}</h1>
-                        <div className="flex flex-wrap items-center gap-4 mt-2 text-text-secondary text-sm">
-                            <span className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-3 mt-2 text-sm text-text-secondary">
+                            <div className="flex items-center gap-1.5">
                                 <Calendar className="w-4 h-4" />
-                                {trip.target_start_date ? new Date(trip.target_start_date).toLocaleDateString() : 'TBD'} - {trip.target_end_date ? new Date(trip.target_end_date).toLocaleDateString() : 'TBD'}
-                            </span>
-                            <span className="w-1 h-1 rounded-full bg-bg-elevated" />
-                            <span className="capitalize px-2.5 py-0.5 rounded-full bg-bg-tertiary text-xs font-medium">
-                                {trip.status}
+                                <span>{new Date(trip.target_start_date).toLocaleDateString()} - {new Date(trip.target_end_date).toLocaleDateString()}</span>
+                            </div>
+                            <span className="w-1 h-1 rounded-full bg-text-tertiary" />
+                            <span className={cn(
+                                "px-2 py-0.5 rounded-full text-xs font-medium border",
+                                trip.status === 'voting' ? "bg-blue-500/10 text-blue-500 border-blue-500/20" :
+                                    trip.status === 'finalized' ? "bg-green-500/10 text-green-500 border-green-500/20" :
+                                        "bg-text-secondary/10 text-text-secondary border-text-secondary/20"
+                            )}>
+                                {toTitleCase(trip.status)}
                             </span>
                         </div>
                     </div>
-                    <Button onClick={() => { }} disabled={trip.status === 'finalized'} variant={trip.status === 'finalized' ? 'ghost' : 'primary'}>
-                        {trip.status === 'finalized' ? 'Trip Finalized' : 'Finalize Trip'}
-                    </Button>
+
+                    {(trip.status === 'voting' || trip.status === 'finalized' || (trip.status === 'draft' && activeTab === 'voting')) && (
+                        <Button
+                            onClick={() => setActiveTab('preparation')}
+                            className={cn(
+                                "shadow-lg transition-all",
+                                trip.status === 'finalized'
+                                    ? "bg-green-600 hover:bg-green-700 text-white shadow-green-500/20"
+                                    : "bg-accent-blue hover:bg-accent-blue/90 text-white shadow-accent-blue/20"
+                            )}
+                        >
+                            {trip.status === 'finalized' ? 'View Itinerary' : 'Finalize Location'}
+                        </Button>
+                    )}
                 </div>
             </div>
 
-            {/* Workflow Tabs */}
-            <div className="border-b border-border">
-                <div className="flex gap-6 overflow-x-auto">
-                    <TabButton
-                        active={activeTab === 'participants'}
+            {/* Tabs */}
+            <div className={cn("border-b border-border mt-8", activeTab === 'preparation' ? "px-4" : "")}>
+                <div className="flex items-center gap-6 overflow-x-auto no-scrollbar">
+                    <button
                         onClick={() => setActiveTab('participants')}
-                        icon={<Users className="w-4 h-4" />}
-                        label="Participants"
-                    />
-                    <TabButton
-                        active={activeTab === 'recommendations'}
+                        className={cn(
+                            "flex items-center gap-2 pb-3 text-sm font-medium transition-all relative whitespace-nowrap",
+                            activeTab === 'participants' ? "text-accent-blue" : "text-text-secondary hover:text-text-primary"
+                        )}
+                    >
+                        <Users className="w-4 h-4" />
+                        Participants
+                        {activeTab === 'participants' && (
+                            <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent-blue rounded-full" />
+                        )}
+                    </button>
+                    <button
                         onClick={() => setActiveTab('recommendations')}
-                        icon={<Sparkles className="w-4 h-4" />}
-                        label="AI Recommendations"
-                    />
-                    <TabButton
-                        active={activeTab === 'voting'}
+                        className={cn(
+                            "flex items-center gap-2 pb-3 text-sm font-medium transition-all relative whitespace-nowrap",
+                            activeTab === 'recommendations' ? "text-accent-blue" : "text-text-secondary hover:text-text-primary"
+                        )}
+                    >
+                        <Sparkles className="w-4 h-4" />
+                        AI Recommendations
+                        {activeTab === 'recommendations' && (
+                            <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent-blue rounded-full" />
+                        )}
+                    </button>
+                    <button
                         onClick={() => setActiveTab('voting')}
-                        icon={<VoteIcon className="w-4 h-4" />}
-                        label="Voting"
-                    />
+                        className={cn(
+                            "flex items-center gap-2 pb-3 text-sm font-medium transition-all relative whitespace-nowrap",
+                            activeTab === 'voting' ? "text-accent-blue" : "text-text-secondary hover:text-text-primary"
+                        )}
+                    >
+                        <VoteIcon className="w-4 h-4" />
+                        Voting
+                        {activeTab === 'voting' && (
+                            <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent-blue rounded-full" />
+                        )}
+                    </button>
+                    {(trip.status === 'finalized' || trip.status === 'voting' || trip.status === 'draft') && (
+                        <button
+                            onClick={() => setActiveTab('preparation')}
+                            className={cn(
+                                "flex items-center gap-2 pb-3 text-sm font-medium transition-all relative whitespace-nowrap",
+                                activeTab === 'preparation' ? "text-accent-blue" : "text-text-secondary hover:text-text-primary"
+                            )}
+                        >
+                            <CheckCircle className="w-4 h-4" />
+                            Trip Preparation
+                            {activeTab === 'preparation' && (
+                                <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent-blue rounded-full" />
+                            )}
+                        </button>
+                    )}
                 </div>
             </div>
 
-            {/* Tab Content */}
-            <div className="animate-fade-in">
+            {/* Content */}
+            <div className={cn("mt-6 animate-fade-in flex-1 min-h-0", activeTab === 'preparation' ? "h-full" : "")}>
                 {activeTab === 'participants' && (
-                    <ParticipantsView tripId={tripId!} onAddClick={() => setIsAddParticipantOpen(true)} />
+                    <ParticipantsView
+                        tripId={tripId!}
+                        onAddClick={() => setIsAddParticipantOpen(true)}
+                    />
                 )}
                 {activeTab === 'recommendations' && (
                     <RecommendationsView tripId={tripId!} />
                 )}
                 {activeTab === 'voting' && (
                     <VotingView tripId={tripId!} />
+                )}
+                {activeTab === 'preparation' && (
+                    <PreparationView tripId={tripId!} />
                 )}
             </div>
 
@@ -538,6 +609,8 @@ function VotingStatus({ participants, votes }: { participants: Participant[], vo
 }
 
 function VotingView({ tripId }: { tripId: string }) {
+    const { user } = useUser();
+    const userEmail = user?.primaryEmailAddress?.emailAddress;
     const queryClient = useQueryClient();
     const [selectedParticipantId, setSelectedParticipantId] = useState<string | null>(null);
     const [rankings, setRankings] = useState<Recommendation[]>([]);
@@ -565,11 +638,29 @@ function VotingView({ tripId }: { tripId: string }) {
         enabled: voteRound?.status === 'closed'
     });
 
+    // Identify current participant based on logged-in user
+    const currentParticipant = participants?.find(p => p.email === userEmail);
+
+    // Filter recommendations based on runoff candidates if applicable
+    const filteredRecommendations = recommendations
+        ? (voteRound?.candidates && voteRound.candidates.length > 0
+            ? recommendations.filter(rec => voteRound.candidates!.includes(rec.id))
+            : recommendations)
+        : [];
+
+    const isRunoffRound = voteRound?.candidates && voteRound.candidates.length > 0;
+
     useEffect(() => {
-        if (recommendations && rankings.length === 0) {
-            setRankings(recommendations);
+        if (currentParticipant) {
+            setSelectedParticipantId(currentParticipant.id);
         }
-    }, [recommendations, rankings.length]);
+    }, [currentParticipant]);
+
+    useEffect(() => {
+        if (filteredRecommendations && rankings.length === 0) {
+            setRankings(filteredRecommendations);
+        }
+    }, [filteredRecommendations, rankings.length]);
 
     // Reset editing state when participant changes
     useEffect(() => {
@@ -581,12 +672,12 @@ function VotingView({ tripId }: { tripId: string }) {
         // If explicitly editing, don't override the view based on vote existence
         if (isEditing) return;
 
-        if (selectedParticipantId && voteRound?.votes && recommendations) {
+        if (selectedParticipantId && voteRound?.votes && filteredRecommendations) {
             const existingVote = voteRound.votes.find(v => v.participant_id === selectedParticipantId);
             if (existingVote) {
                 setHasVoted(true);
                 // Sort rankings based on existing vote
-                const sortedRecs = [...recommendations].sort((a, b) => {
+                const sortedRecs = [...filteredRecommendations].sort((a, b) => {
                     const indexA = existingVote.rankings.indexOf(a.id);
                     const indexB = existingVote.rankings.indexOf(b.id);
                     // If a recommendation is new (not in previous vote), put it at the end
@@ -598,14 +689,14 @@ function VotingView({ tripId }: { tripId: string }) {
             } else {
                 setHasVoted(false);
                 // Reset rankings to default order (by score/default) if they haven't voted yet
-                setRankings(recommendations);
+                setRankings(filteredRecommendations);
             }
         } else if (!selectedParticipantId) {
             setHasVoted(false);
             // Reset rankins when no participant is selected to ensure clean state
-            setRankings(recommendations || []);
+            setRankings(filteredRecommendations || []);
         }
-    }, [selectedParticipantId, voteRound, recommendations, isEditing]);
+    }, [selectedParticipantId, voteRound, filteredRecommendations, isEditing]);
 
     const submitVoteMutation = useMutation({
         mutationFn: async () => {
@@ -614,7 +705,7 @@ function VotingView({ tripId }: { tripId: string }) {
                 recommendation_id: rec.id,
                 rank: index + 1
             }));
-            await TripService.submitVote(tripId, selectedParticipantId, formattedRankings);
+            await TripService.submitVote(tripId, selectedParticipantId, formattedRankings, userEmail);
         },
         onSuccess: () => {
             setHasVoted(true);
@@ -772,6 +863,7 @@ function VotingView({ tripId }: { tripId: string }) {
                         </div>
                     </div>
                 </div>
+
             </div>
         );
     }
@@ -786,21 +878,28 @@ function VotingView({ tripId }: { tripId: string }) {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <h3 className="text-lg font-semibold">Cast Your Vote</h3>
-                    <p className="text-sm text-text-secondary">Rank the destinations from most to least favorite.</p>
+                    <p className="text-sm text-text-secondary">
+                        {isRunoffRound
+                            ? `Runoff vote: Choose between the top ${filteredRecommendations.length} destinations.`
+                            : "Rank the destinations from most to least favorite."
+                        }
+                    </p>
                 </div>
 
                 <div className="flex items-center gap-2">
                     <span className="text-sm text-text-secondary whitespace-nowrap">Voting as:</span>
-                    <select
-                        className="h-9 rounded-md border border-border bg-bg-elevated px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent-blue"
-                        value={selectedParticipantId || ""}
-                        onChange={(e) => setSelectedParticipantId(e.target.value)}
-                    >
-                        <option value="" disabled>Select yourself...</option>
-                        {participants.map(p => (
-                            <option key={p.id} value={p.id}>{p.name}</option>
-                        ))}
-                    </select>
+                    {currentParticipant ? (
+                        <div className="h-9 rounded-md border border-border bg-bg-elevated px-3 py-1.5 text-sm font-medium flex items-center gap-2">
+                            <div className="w-5 h-5 rounded-full bg-accent-blue/10 text-accent-blue flex items-center justify-center text-xs">
+                                {currentParticipant.name.charAt(0)}
+                            </div>
+                            {currentParticipant.name}
+                        </div>
+                    ) : (
+                        <div className="h-9 rounded-md border border-red-200 bg-red-50 px-3 py-1.5 text-sm text-red-600 flex items-center gap-2">
+                            Not a participant
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -811,9 +910,11 @@ function VotingView({ tripId }: { tripId: string }) {
                     </div>
                     <div>
                         <h3 className="text-xl font-semibold">Vote Submitted!</h3>
-                        <p className="text-text-secondary max-w-md mt-2">
-                            Waiting for other participants to cast their votes.
-                        </p>
+                        {!allVotesIn && (
+                            <p className="text-text-secondary max-w-md mt-2">
+                                Waiting for other participants to cast their votes.
+                            </p>
+                        )}
                     </div>
                     <div className="flex gap-3">
                         <Button
@@ -826,25 +927,33 @@ function VotingView({ tripId }: { tripId: string }) {
                             Edit Vote
                         </Button>
                         {allVotesIn && (
-                            <motion.div
-                                initial={{ opacity: 0, scale: 0.9 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                            >
-                                <Button
-                                    variant="secondary"
-                                    onClick={() => endVotingMutation.mutate()}
-                                    isLoading={endVotingMutation.isPending}
+                            currentParticipant?.role === 'organizer' ? (
+                                <motion.div
+                                    initial={{ opacity: 0, scale: 0.9 }}
+                                    animate={{ opacity: 1, scale: 1 }}
                                 >
-                                    End Voting & Show Results
-                                </Button>
-                            </motion.div>
+                                    <Button
+                                        variant="secondary"
+                                        onClick={() => endVotingMutation.mutate()}
+                                        isLoading={endVotingMutation.isPending}
+                                    >
+                                        End Voting & Show Results
+                                    </Button>
+                                </motion.div>
+                            ) : (
+                                <p className="text-sm text-text-secondary self-center italic">
+                                    Please wait for the organizer to end voting and show results.
+                                </p>
+                            )
                         )}
                     </div>
                 </div>
             ) : !selectedParticipantId ? (
                 <div className="flex flex-col items-center justify-center py-12 border-2 border-dashed border-border rounded-xl bg-bg-secondary/30">
                     <VoteIcon className="w-8 h-8 text-text-tertiary mb-3" />
-                    <p className="text-text-secondary font-medium">Select your name above to start voting</p>
+                    <p className="text-text-secondary font-medium">
+                        {currentParticipant ? "Loading your session..." : "You must be a participant to vote."}
+                    </p>
                 </div>
             ) : (
                 <div className="space-y-6">
@@ -995,6 +1104,71 @@ function LocationLeaderboard({ winnerId, rounds, recommendations, votes }: { win
                             <div className="absolute top-4 left-1/2 -translate-x-1/2 text-4xl font-bold text-orange-300 opacity-50">3</div>
                         </div>
                     </motion.div>
+                )}
+            </div>
+        </div>
+    );
+}
+
+function PreparationView({ tripId }: { tripId: string }) {
+    const [activeTab, setActiveTab] = useState<'packing' | 'logistics'>('packing');
+
+    return (
+        <div className="h-full flex flex-col animate-fade-in">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 flex-none">
+                <div>
+                    <h2 className="text-2xl font-bold tracking-tight">Trip Preparation</h2>
+                    <p className="text-text-secondary">Get ready for your upcoming adventure!</p>
+                </div>
+
+                <div className="flex bg-bg-tertiary p-1 rounded-lg self-start md:self-auto">
+                    <button
+                        onClick={() => setActiveTab('packing')}
+                        className={cn(
+                            "px-4 py-2 text-sm font-medium rounded-md transition-all flex items-center gap-2",
+                            activeTab === 'packing'
+                                ? "bg-bg-elevated text-text-primary shadow-sm"
+                                : "text-text-secondary hover:text-text-primary"
+                        )}
+                    >
+                        <Briefcase className="w-4 h-4" />
+                        Packing Trip
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('logistics')}
+                        className={cn(
+                            "px-4 py-2 text-sm font-medium rounded-md transition-all flex items-center gap-2",
+                            activeTab === 'logistics'
+                                ? "bg-bg-elevated text-text-primary shadow-sm"
+                                : "text-text-secondary hover:text-text-primary"
+                        )}
+                    >
+                        <Map className="w-4 h-4" />
+                        Logistics Planning
+                    </button>
+                </div>
+            </div>
+
+            <div className="flex-1 min-h-0">
+                {activeTab === 'packing' ? (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <Briefcase className="w-5 h-5 text-accent-blue" />
+                                Packing List
+                            </CardTitle>
+                            <CardDescription>Collaborative packing list for the group</CardDescription>
+                        </CardHeader>
+                        <CardContent className="min-h-[300px] flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-border/50 rounded-lg m-6 bg-bg-secondary/30">
+                            <Briefcase className="w-12 h-12 text-text-tertiary mb-4 opacity-50" />
+                            <h3 className="text-lg font-medium text-text-secondary">Packing List Coming Soon</h3>
+                            <p className="text-sm text-text-tertiary max-w-sm mt-2">
+                                We're building a smart packing list feature to help you ensure nothing gets left behind.
+                            </p>
+                        </CardContent>
+                    </Card>
+                ) : (
+                    <ItineraryView tripId={tripId} />
                 )}
             </div>
         </div>

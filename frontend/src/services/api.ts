@@ -76,17 +76,17 @@ export interface Recommendation {
 }
 
 interface RecommendationResponse {
-    id: string;
-    title: string;
-    description: string;
-    score?: number;
-    cost_usd?: number;
-    extra?: {
-        highlights?: string[];
-        vibe?: string;
-        estimated_cost?: number;
-        confidence?: number;
-    };
+  id: string;
+  title: string;
+  description: string;
+  score?: number;
+  cost_usd?: number;
+  extra?: {
+    highlights?: string[];
+    vibe?: string;
+    estimated_cost?: number;
+    confidence?: number;
+  };
 }
 
 // Service functions
@@ -123,7 +123,7 @@ export const TripService = {
     const response = await api.post<{ message: string }>(`/trips/${tripId}/invite`, data);
     return response.data;
   },
-  joinTrip: async (tripId: string, data: { name: string; phone: string; email?: string; preferences: string[]; budget: string; location?: string }) => {
+  joinTrip: async (tripId: string, data: { name: string; phone?: string; email?: string; preferences: string[]; budget: string; location?: string }) => {
     const response = await api.post<Participant>(`/trips/${tripId}/join`, data);
     return response.data;
   },
@@ -137,41 +137,50 @@ export const TripService = {
     await api.delete(`/trips/${tripId}/participants/${participantId}`, { headers, params });
   },
   saveSurveyResponse: async (tripId: string, participantId: string, answers: Record<string, unknown>) => {
-     const response = await api.patch(`/trips/${tripId}/participants/${participantId}/survey-response`, { answers });
-     return response.data;
+    const response = await api.patch(`/trips/${tripId}/participants/${participantId}/survey-response`, { answers });
+    return response.data;
   },
   getSurveyResponse: async (tripId: string, participantId: string) => {
     try {
-        const response = await api.get(`/trips/${tripId}/participants/${participantId}/survey-response`);
-        return response.data;
+      const response = await api.get(`/trips/${tripId}/participants/${participantId}/survey-response`);
+      return response.data;
     } catch {
-        return null;
+      return null;
     }
   },
   getRecommendations: async (tripId: string) => {
-      const response = await api.get<RecommendationResponse[]>(`/trips/${tripId}/recommendations`);
-      return response.data.map(mapRecommendation);
+    const response = await api.get<RecommendationResponse[]>(`/trips/${tripId}/recommendations`);
+    return response.data.map(mapRecommendation);
   },
   generateRecommendations: async (tripId: string, customPreference?: string) => {
-      const response = await api.post<RecommendationResponse[]>(`/trips/${tripId}/recommendations`, { 
-        candidate_count: 5,
-        custom_preference: customPreference
-      });
-      return response.data.map(mapRecommendation);
+    const response = await api.post<RecommendationResponse[]>(`/trips/${tripId}/recommendations`, {
+      candidate_count: 5,
+      custom_preference: customPreference
+    });
+    return response.data.map(mapRecommendation);
   },
   getVoteRound: async (tripId: string) => {
     const response = await api.get<VoteRound>(`/trips/${tripId}/vote-rounds/current`);
     return response.data;
   },
-  submitVote: async (tripId: string, participantId: string, rankings: { recommendation_id: string; rank: number }[]) => {
+  submitVote: async (tripId: string, participantId: string, rankings: { recommendation_id: string; rank: number }[], userEmail?: string) => {
+    const headers = userEmail ? { "x-user-email": userEmail } : {};
     const response = await api.post(`/trips/${tripId}/votes`, {
       participant_id: participantId,
       rankings
-    });
+    }, { headers });
     return response.data;
   },
   getVoteResults: async (tripId: string) => {
     const response = await api.get<VoteResults>(`/trips/${tripId}/results`);
+    return response.data;
+  },
+  generateItinerary: async (tripId: string) => {
+    const response = await api.post<any[]>(`/trips/${tripId}/itinerary/generate`);
+    return response.data;
+  },
+  getItinerary: async (tripId: string) => {
+    const response = await api.get<any[]>(`/trips/${tripId}/itinerary`);
     return response.data;
   }
 };
@@ -189,9 +198,10 @@ export interface VoteRound {
   id: string;
   trip_id: string;
   status: "open" | "closed";
+  candidates?: string[] | null;  // For runoff rounds, restricts which recommendations can be voted on
   results?: {
-      winner?: string;
-      rounds?: Record<string, number>[];
+    winner?: string;
+    rounds?: Record<string, number>[];
   };
   votes: Vote[];
 }
@@ -206,14 +216,14 @@ const mapRecommendation = (rec: RecommendationResponse): Recommendation => {
   const details = rec.extra || {};
   const highlights = Array.isArray(details.highlights) ? details.highlights : [];
   const vibe = details.vibe ? [details.vibe] : [];
-  
+
   let priceLevel = "$$";
   const cost = details.estimated_cost || rec.cost_usd;
   if (cost) {
-      if (cost < 1000) priceLevel = "$";
-      else if (cost < 2500) priceLevel = "$$";
-      else if (cost < 4000) priceLevel = "$$$";
-      else priceLevel = "$$$$";
+    if (cost < 1000) priceLevel = "$";
+    else if (cost < 2500) priceLevel = "$$";
+    else if (cost < 4000) priceLevel = "$$$";
+    else priceLevel = "$$$$";
   }
 
   return {

@@ -12,7 +12,7 @@ from ..models import DestinationRecommendation, Vote
 def instant_runoff_round(
     recommendations: List[UUID], ballots: List[List[UUID]]
 ) -> tuple[UUID | None, dict[UUID, int], List[UUID]]:
-    tally = Counter()
+    tally = Counter({rec: 0 for rec in recommendations})
     for ballot in ballots:
         for choice in ballot:
             if choice in recommendations:

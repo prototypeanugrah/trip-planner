@@ -1,69 +1,68 @@
-## Pack Vote
+# Pack Vote
 
-Pack Vote is an AI-powered group travel planning platform. It collects participant preferences through SMS surveys, generates tailored destination recommendations via a model gateway that can route to OpenAI, Anthropic, or DeepSeek, and converges on a consensus using ranked-choice voting. The backend is built with FastAPI, SQLModel, and a production-focused toolkit including rate limiting, Prometheus metrics, and automated testing.
+Pack Vote is an AI-powered group travel planning platform that leverages agentic workflows to facilitate consensus. It combines SMS-based preference collection, multi-model AI recommendations, and ranked-choice voting to streamline trip planning.
 
-### Highlights
-- Full REST API for trips, participants, surveys, recommendations, and voting.
-- Twilio SMS integration with development fallbacks and signature validation.
-- Model gateway abstraction with prompt variant support, provider weighting, and metric instrumentation.
-- Ranked-choice (instant-runoff) vote tallying with audit logging.
-- Structured domain models stored in a SQL database (SQLite by default).
-- Prometheus metrics endpoint, SlowAPI rate limiting, and configurable CORS.
-- End-to-end integration test that exercises the primary planning flow.
+## Tech Stack & Dependencies
 
-### Project Structure
-- `packvote/app.py` – FastAPI app factory, middleware, and lifecycle hooks.
-- `packvote/models.py` – SQLModel tables for trips, surveys, recommendations, votes, and audit logs.
-- `packvote/schemas.py` – Pydantic schemas for request/response payloads.
-- `packvote/services/` – Domain services for AI routing, recommendations, voting, messaging, metrics, and rate limiting.
-- `packvote/api/routes/` – Modular FastAPI routers for each domain area and webhooks.
-- `tests/` – Pytest suite with async end-to-end workflow coverage.
-- `pyproject.toml` – Poetry-compatible project metadata and dependency management.
+### Backend
+- **Runtime**: Python 3.12+
+- **Framework**: FastAPI
+- **Database**: SQLModel (SQLite + aiosqlite), SQLAlchemy
+- **AI/LLM**: LangChain, LangGraph (OpenAI, Anthropic, DeepSeek)
+- **Messaging**: Twilio API
+- **Observability**: Prometheus, SlowAPI (Rate Limiting)
 
-### Getting Started
-1. **Clone and install dependencies**
-   ```bash
-   pip install -e .
-   ```
+### Frontend
+- **Framework**: React (Vite)
+- **Styling**: TailwindCSS (inferred standard)
 
-2. **Create an environment file** (optional but recommended)
-   ```bash
-   cp packvote/env.example .env
-   ```
-   Populate credentials for Twilio and your preferred model providers when available. Without keys, the app falls back to deterministic stub responses and console-logged SMS.
+## Project Structure
 
-3. **Run the API + UI locally**
-   ```bash
-   uvicorn main:app --reload --port 8090
-   ```
-   The service exposes the control center UI at `http://localhost:8090/ui`, interactive docs at `/docs`, and Prometheus metrics at `/metrics`.
+```text
+.
+├── packvote/               # Backend source code
+│   ├── api/                # FastAPI routes (REST endpoints)
+│   ├── services/           # Domain logic (AI, Voting, SMS)
+│   ├── models.py           # SQLModel database schemas
+│   └── app.py              # App factory and configuration
+├── frontend/               # React frontend application
+├── tests/                  # Pytest suite (E2E and unit tests)
+├── alembic/                # Database migrations
+└── main.py                 # Application entry point
+```
 
-### Configuration
-Key environment variables (prefixed with `PACKVOTE_`):
-- `DATABASE_URL` – SQLAlchemy URL (`sqlite+aiosqlite:///./packvote.db` by default).
-- `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_MESSAGING_SERVICE_SID` – required for live SMS delivery.
-- `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `DEEPSEEK_API_KEY` – enable live model calls.
-- `ALLOWED_ORIGINS` – comma-separated list for CORS control.
+## Agentic AI Impact
 
-Prompt assets can be stored in the `prompts/` directory (configurable via `prompt_store_path`). Version metadata is recorded on each trip and recommendation.
+Pack Vote uses an agentic architecture to drive decision-making:
+- **Model Gateway**: Dynamically routes prompts to the best-suited LLM provider (OpenAI, Anthropic, DeepSeek) based on availability and task complexity.
+- **Consensus Engine**: Automates the decision process using ranked-choice voting (Instant Runoff) to fairly select destinations based on group preferences.
+- **Preference Agent**: Synthesizes unstructured SMS responses into structured participant profiles to tailor recommendations.
 
-### Testing
-Run the automated tests with:
+## Getting Started
+
+1.  **Install Dependencies**
+    ```bash
+    pip install -e .
+    ```
+
+2.  **Configure Environment**
+    Copy the example environment file and populate your API keys (Twilio, OpenAI, etc.).
+    ```bash
+    cp packvote/env.example .env
+    ```
+
+3.  **Run the Application**
+    Start the backend server (default port 8090).
+    ```bash
+    uvicorn main:app --reload --port 8090
+    ```
+    - API Docs: `http://localhost:8090/docs`
+    - Metrics: `http://localhost:8090/metrics`
+
+## Testing
+
+Run the full test suite using `pytest`. This includes end-to-end tests for the planning workflow.
+
 ```bash
 pytest
 ```
-The suite spins up an isolated SQLite database, exercises the primary workflow (trip → survey → recommendations → voting), verifies the metrics endpoint, and tears down cleanly.
-
-### Observability & Operations
-- **Metrics**: Prometheus-compatible counters and histograms exposed at `/metrics` (e.g., SMS send counts, AI latency, recommendation totals).
-- **Rate limiting**: SlowAPI enforces a global `120/minute` limit per client IP. Adjust in `services/rate_limit.py` as needed.
-- **Audit logging**: Key lifecycle events (trip creation, survey activity, voting) are captured in `audit_logs` for compliance and analysis.
-
-### Extensibility Roadmap
-- Add pricing agent integration for live flight/hotel data.
-- Expand prompt evaluation telemetry and automated AB promotion logic.
-- Extend analytics dashboards and trip-level insights.
-- Introduce background workers (Celery/Arq) for high-volume survey dispatching.
-
-Pack Vote demonstrates production-grade patterns for multi-model AI orchestration, preference capture, and group decision making. Contributions and adaptations are welcome.
-

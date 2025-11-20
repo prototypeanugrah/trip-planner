@@ -58,6 +58,7 @@ class Trip(TimestampMixin, SQLModel, table=True):
     )
     vote_rounds: List["VoteRound"] = Relationship(back_populates="trip")
     audit_events: List["AuditLog"] = Relationship(back_populates="trip")
+    itinerary: Optional["Itinerary"] = Relationship(back_populates="trip")
 
 
 class Participant(TimestampMixin, SQLModel, table=True):
@@ -197,3 +198,16 @@ class AuditLog(TimestampMixin, SQLModel, table=True):
     detail: Dict[str, str] = Field(default_factory=dict, sa_column=Column(JSON))
 
     trip: Optional[Trip] = Relationship(back_populates="audit_events")
+
+
+class Itinerary(TimestampMixin, SQLModel, table=True):
+    __tablename__ = "itineraries"
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    trip_id: UUID = Field(foreign_key="trips.id", index=True)
+    content: List[Dict[str, Any]] = Field(default_factory=list, sa_column=Column(JSON))
+    model_name: str = Field(max_length=100)
+    prompt_variant: str = Field(default="baseline", max_length=50)
+
+    trip: "Trip" = Relationship(back_populates="itinerary")
+
