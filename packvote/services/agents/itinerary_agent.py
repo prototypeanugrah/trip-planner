@@ -10,8 +10,7 @@ from langchain_core.prompts import PromptTemplate
 from langchain_tavily import TavilySearch
 from langgraph.graph import END, StateGraph
 
-from ..models import Trip
-from .ai_gateway import ModelGateway, ModelRequest, ModelResponse
+from ..ai_gateway import ModelGateway, ModelRequest
 from .recommendation_agent import PreferenceSummary, TripWindow, _format_preferences, _format_window_text
 
 

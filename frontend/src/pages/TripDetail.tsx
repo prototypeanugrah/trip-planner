@@ -10,6 +10,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { AddParticipantWizard } from '@/components/AddParticipantWizard';
 import { Reorder, motion, AnimatePresence } from 'framer-motion';
 import { ItineraryView } from '@/components/ItineraryView';
+import { LogisticsView } from '@/components/LogisticsView';
 import { Users, Sparkles, Vote as VoteIcon, CheckCircle, ChevronLeft, Calendar, MapPin, MoreVertical, Trash2, Edit2, Check, GripVertical, Trophy, Briefcase, Map } from 'lucide-react';
 import { cn, toTitleCase } from '@/lib/utils';
 import type { Recommendation } from '@/services/api';
@@ -1111,7 +1112,7 @@ function LocationLeaderboard({ winnerId, rounds, recommendations, votes }: { win
 }
 
 function PreparationView({ tripId }: { tripId: string }) {
-    const [activeTab, setActiveTab] = useState<'packing' | 'logistics'>('packing');
+    const [activeTab, setActiveTab] = useState<'itinerary' | 'logistics' | 'packing'>('itinerary');
 
     return (
         <div className="h-full flex flex-col animate-fade-in">
@@ -1122,6 +1123,30 @@ function PreparationView({ tripId }: { tripId: string }) {
                 </div>
 
                 <div className="flex bg-bg-tertiary p-1 rounded-lg self-start md:self-auto">
+                    <button
+                        onClick={() => setActiveTab('itinerary')}
+                        className={cn(
+                            "px-4 py-2 text-sm font-medium rounded-md transition-all flex items-center gap-2",
+                            activeTab === 'itinerary'
+                                ? "bg-bg-elevated text-text-primary shadow-sm"
+                                : "text-text-secondary hover:text-text-primary"
+                        )}
+                    >
+                        <Map className="w-4 h-4" />
+                        Itinerary
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('logistics')}
+                        className={cn(
+                            "px-4 py-2 text-sm font-medium rounded-md transition-all flex items-center gap-2",
+                            activeTab === 'logistics'
+                                ? "bg-bg-elevated text-text-primary shadow-sm"
+                                : "text-text-secondary hover:text-text-primary"
+                        )}
+                    >
+                        <Briefcase className="w-4 h-4" />
+                        Travel Logistics
+                    </button>
                     <button
                         onClick={() => setActiveTab('packing')}
                         className={cn(
@@ -1134,23 +1159,15 @@ function PreparationView({ tripId }: { tripId: string }) {
                         <Briefcase className="w-4 h-4" />
                         Packing Trip
                     </button>
-                    <button
-                        onClick={() => setActiveTab('logistics')}
-                        className={cn(
-                            "px-4 py-2 text-sm font-medium rounded-md transition-all flex items-center gap-2",
-                            activeTab === 'logistics'
-                                ? "bg-bg-elevated text-text-primary shadow-sm"
-                                : "text-text-secondary hover:text-text-primary"
-                        )}
-                    >
-                        <Map className="w-4 h-4" />
-                        Logistics Planning
-                    </button>
                 </div>
             </div>
 
             <div className="flex-1 min-h-0">
-                {activeTab === 'packing' ? (
+                {activeTab === 'itinerary' ? (
+                    <ItineraryView tripId={tripId} />
+                ) : activeTab === 'logistics' ? (
+                    <LogisticsView tripId={tripId} />
+                ) : (
                     <Card>
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
@@ -1167,8 +1184,6 @@ function PreparationView({ tripId }: { tripId: string }) {
                             </p>
                         </CardContent>
                     </Card>
-                ) : (
-                    <ItineraryView tripId={tripId} />
                 )}
             </div>
         </div>

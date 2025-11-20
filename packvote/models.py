@@ -211,3 +211,77 @@ class Itinerary(TimestampMixin, SQLModel, table=True):
 
     trip: "Trip" = Relationship(back_populates="itinerary")
 
+
+class TravelLogistics(TimestampMixin, SQLModel, table=True):
+    """Stores all travel logistics for a trip/participant combination."""
+    __tablename__ = "travel_logistics"
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    trip_id: UUID = Field(foreign_key="trips.id", index=True)
+    participant_id: UUID = Field(foreign_key="participants.id", index=True)
+    model_name: Optional[str] = Field(default=None, max_length=100)
+    prompt_variant: str = Field(default="baseline", max_length=50)
+
+    trip: "Trip" = Relationship()
+    participant: "Participant" = Relationship()
+    flight_recommendations: List["FlightRecommendation"] = Relationship(
+        back_populates="logistics"
+    )
+    hotel_recommendations: List["HotelRecommendation"] = Relationship(
+        back_populates="logistics"
+    )
+
+
+class FlightRecommendation(TimestampMixin, SQLModel, table=True):
+    """Individual flight recommendation with airline, pricing, and timing details."""
+    __tablename__ = "flight_recommendations"
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    logistics_id: UUID = Field(foreign_key="travel_logistics.id", index=True)
+
+    direction: str = Field(..., max_length=20)  # "outbound" or "return"
+    rank: int = Field(..., ge=1, le=3)  # 1 = best, 2-3 = alternatives
+
+    airline: str = Field(..., max_length=200)
+    airline_logo_url: Optional[str] = Field(default=None, max_length=500)
+    flight_number: str = Field(..., max_length=20)
+
+    departure_airport: str = Field(..., max_length=10)  # IATA code
+    arrival_airport: str = Field(..., max_length=10)  # IATA code
+    departure_time: datetime = Field(...)
+    arrival_time: datetime = Field(...)
+
+    price_usd: float = Field(..., ge=0)
+    duration_minutes: int = Field(..., ge=0)
+    num_stops: int = Field(..., ge=0)
+
+    extra: Dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+
+    logistics: "TravelLogistics" = Relationship(back_populates="flight_recommendations")
+
+
+class HotelRecommendation(TimestampMixin, SQLModel, table=True):
+    """Individual hotel recommendation with pricing and amenity details."""
+    __tablename__ = "hotel_recommendations"
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    logistics_id: UUID = Field(foreign_key="travel_logistics.id", index=True)
+
+    rank: int = Field(..., ge=1, le=3)  # 1 = best, 2-3 = alternatives
+
+    name: str = Field(..., max_length=200)
+    star_rating: int = Field(..., ge=1, le=5)
+
+    check_in_date: datetime = Field(...)
+    check_out_date: datetime = Field(...)
+    num_nights: int = Field(..., ge=1)
+
+    price_per_night_usd: float = Field(..., ge=0)
+    total_price_usd: float = Field(..., ge=0)
+
+    address: str = Field(..., max_length=500)
+    amenities: List[str] = Field(default_factory=list, sa_column=Column(JSON))
+
+    extra: Dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+
+    logistics: "TravelLogistics" = Relationship(back_populates="hotel_recommendations")

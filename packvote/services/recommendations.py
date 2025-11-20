@@ -20,7 +20,7 @@ from ..models import (
 from ..schemas import RecommendationCreate
 from .ai_gateway import ModelGateway
 from .metrics import recommendation_generated_counter
-from .recommendation_agent import (
+from .agents.recommendation_agent import (
     RecommendationAgent,
     build_trip_window,
     summarize_preferences,

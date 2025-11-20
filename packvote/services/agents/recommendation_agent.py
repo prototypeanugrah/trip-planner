@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 from collections import Counter
-from typing import Any, Dict, List, Optional, TypedDict
+from typing import Any, Dict, List, TypedDict
 
 from langchain_core.prompts import PromptTemplate
 from langgraph.graph import END, StateGraph
 
-from ..models import SurveyResponse, Trip
-from .ai_gateway import ModelGateway, ModelRequest, ModelResponse
+from ...models import SurveyResponse, Trip
+from ..ai_gateway import ModelGateway, ModelRequest, ModelResponse
 
 
 class TripWindow(TypedDict, total=False):

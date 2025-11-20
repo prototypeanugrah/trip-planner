@@ -89,6 +89,42 @@ interface RecommendationResponse {
   };
 }
 
+export interface FlightRecommendation {
+  id: string;
+  rank: number;
+  airline: string;
+  airline_logo_url?: string;
+  flight_number: string;
+  departure_airport: string;
+  arrival_airport: string;
+  departure_time: string;
+  arrival_time: string;
+  price_usd: number;
+  duration_minutes: number;
+  num_stops: number;
+}
+
+export interface HotelRecommendation {
+  id: string;
+  rank: number;
+  name: string;
+  star_rating: number;
+  check_in_date: string;
+  check_out_date: string;
+  num_nights: number;
+  price_per_night_usd: number;
+  total_price_usd: number;
+  address: string;
+  amenities: string[];
+}
+
+export interface TravelLogistics {
+  outbound_flights: FlightRecommendation[];
+  return_flights: FlightRecommendation[];
+  hotels: HotelRecommendation[];
+  metadata?: Record<string, any>;
+}
+
 // Service functions
 export const TripService = {
   getAll: async (email?: string) => {
@@ -181,6 +217,19 @@ export const TripService = {
   },
   getItinerary: async (tripId: string) => {
     const response = await api.get<any[]>(`/trips/${tripId}/itinerary`);
+    return response.data;
+  },
+  getTravelLogistics: async (tripId: string, userEmail: string) => {
+    const response = await api.get<TravelLogistics>(`/trips/${tripId}/logistics`, {
+      params: { user_email: userEmail }
+    });
+    return response.data;
+  },
+  generateTravelLogistics: async (tripId: string, userEmail: string) => {
+    const response = await api.post<TravelLogistics>(
+      `/trips/${tripId}/logistics/generate?user_email=${encodeURIComponent(userEmail)}`,
+      {}
+    );
     return response.data;
   }
 };
